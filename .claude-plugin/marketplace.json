@@ -1,0 +1,12 @@
+{
+  "name": "mg-skills",
+  "description": "Personal agent skills",
+  "owner": { "name": "Maxim Grishaev" },
+  "plugins": [
+    {
+      "name": "mg",
+      "source": "./",
+      "description": "Personal agent skills"
+    }
+  ]
+}
