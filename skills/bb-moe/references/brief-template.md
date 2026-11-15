@@ -80,7 +80,7 @@ Role-specific parts:
 
 ## Follow-up brief
 
-Send a follow-up only for the same task, while the agent's context is small and recent. `&butler`, `&main__qa` and `&arch__skeptic` are the exceptions. Otherwise spawn a fresh agent and point it at this one's log.
+Send a follow-up for any later round on the same topic: a fix round, or a small follow-up after landing. Spawn a fresh agent only when the old one's context is large or it has been idle past the one-hour prompt cache; point it at the old one's log. `&butler`, `&main__qa` and `&arch__skeptic` get follow-ups across topics.
 
 ```markdown
 From the Lead. User: "<exact quote>".

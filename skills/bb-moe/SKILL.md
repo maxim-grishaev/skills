@@ -34,7 +34,7 @@ Every sub-agent has an `&` name. Use it in chat, briefs and logs. File names dro
 - An agent with a topic is `&<topic>__<role>`, with two underscores. Examples: `&auth__build`, `&auth__qa`, `&auth__reviewer`, `&debrief__scout`, `&arch__skeptic` (topic: the architecture).
 - For roadmap work, the topic is the task name. All agents on one task share it.
 - An agent that is one of a kind for the whole job has the bare role: `&architect`, `&butler`.
-- A second agent with the same name gets a number: `&auth__build-2`.
+- A replacement for an agent with the same name gets a number: `&auth__build-2`. A new round on the same topic is no reason for a number; it goes to the existing agent.
 
 | Role | Does | Never |
 |---|---|---|
@@ -119,7 +119,7 @@ Use your in-process agent tool only for throwaway checks that you read yourself,
   - QA, reviewer, review-skeptic: the builder's environment (`--environment <builder env id>`). They then see exactly the builder's code.
   - `&butler`, `&main__qa`: your worktree. It holds the work branch that gets pushed. You stop editing it.
   - Scouts, architect, arch skeptic: read-only in your worktree. They get their own worktree if someone writes in yours.
-- **Fresh agent per task.** Point it at the previous agent's log. Long contexts and resumes after the one-hour prompt cache expired were the biggest costs after the Lead. Follow up an existing agent only on the same task, while its context is small and recent. The standing exceptions are `&butler`, `&main__qa` and `&arch__skeptic`. Replace one of them with a fresh agent when its context grows large.
+- **Fresh agent per topic, not per action.** Follow-up rounds on the same topic go to that topic's existing agents as follow-up briefs: fix rounds, and a small follow-up after landing. Long contexts and resumes after the one-hour prompt cache expired were the biggest costs after the Lead. So replace an agent with a fresh one only when its context is large or it has been idle past the hour. Point the fresh agent at the previous agent's log. `&butler`, `&main__qa` and `&arch__skeptic` are standing agents: they stay across topics and get follow-up briefs; replace one only for the same two reasons.
 - **Models**, all at `--reasoning-level high`. A mid-tier model (`claude-sonnet-5-5`) for builders, QA, `&butler` and delivery. A stronger model (`claude-opus-5-5`) where judgement is the work: debrief, architect, skeptics, reviewer, scouts, writing for agents.
 - **Permissions go in the brief**: what the agent may start, commit and push, and which credentials file it may read. You get credentials with `bb secret request` into `S/secrets/`. Never paste them into a brief.
 - **Register every spawn at once** in the snapshot's team registry: name, thread, environment, task, model, state. Agents find each other there.
