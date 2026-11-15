@@ -1,6 +1,6 @@
 # Asking the user
 
-Any agent that asks the user a decision follows this file. Your role file may add to it, but never contradicts it. `R` is the skill's `references/` directory; this file is `R/ask-user.md`.
+Any agent that asks the user a decision follows this file. Your role file may add to it, or require the full session; otherwise it never contradicts it. `R` is the skill's `references/` directory; this file is `R/ask-user.md`.
 
 ## Rules for every ask
 
