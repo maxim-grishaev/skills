@@ -19,6 +19,8 @@ Any agent that asks the user a decision follows this file. Your role file may ad
 
 ## Simple or full
 
+Genuine ambiguity: you cannot pick the answer with confidence, and the choices lead to different work.
+
 - **Full session:** two or more questions, and genuine ambiguity. Both must hold. Follow "Full session" below.
 - **Simple case:** one question, or no genuine ambiguity. Send the question in the format above, end with the waiting line, and go on with the answer. There is no follow-up check and no understanding sync.
 

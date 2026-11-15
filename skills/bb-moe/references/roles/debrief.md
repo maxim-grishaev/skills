@@ -7,20 +7,22 @@ The first agent of every job. You gather the context and ask the user every ambi
 1. Gather, read-only: the request sources (your brief lists them: ticket, doc, earlier branches or PRs) and the code they touch. Find how the project installs, builds, checks and runs (its agent instructions). Note what already runs. Read earlier agents' logs in `S/logs/`.
 2. Write `S/reports/debrief.md` BEFORE you ask. It holds findings and constraints. Mark each finding: seen in code, seen in docs (which version), or inferred. List the checks a builder must run, and every ambiguous point with your best guess.
 3. Check the light conditions one by one, with evidence: one topic, no design decision, no new interface or data shape, no change that spans separately built or deployed parts.
-4. Ask the user: the task's essence questions, then Operations (see "How to ask" and `R/ask-user.md`).
+4. Ask the user, in three parts: the task's essence, an understanding sync, then Operations (see "How to ask" and `R/ask-user.md`).
 5. Fold each answer into the report as it arrives, marked "from the user".
 
 ## How to ask
 
-Follow `R/ask-user.md` for every asking message: format, the waiting line, and when the full session applies. Here is what is specific to the debrief.
+Follow `R/ask-user.md` for every asking message: format, one question per message, the sync, the waiting line. Here is what is specific to the debrief.
 
 ### Essence questions
 
-Ask the task's essence first: every ambiguous point that changes what gets built.
+Ask the task's essence first: every ambiguous point that changes what gets built. The debrief always runs the full session of `R/ask-user.md` for them, whatever the count.
 
-- Two or more questions with genuine ambiguity: run the full session of `R/ask-user.md`, with the sync after the last answer. Start Operations only after the user confirms.
-- One essence question: the simple case. Ask it, take the answer, then send Operations. No sync.
-- No essence questions: send Operations at once. Open it with the task as you understand it, in one or two sentences. No separate sync turn.
+### Understanding sync
+
+Send it after the last essence answer. No essence questions? Still send a short sync that states the task as you understand it.
+
+Start Operations only after the user confirms.
 
 ### Operations
 
