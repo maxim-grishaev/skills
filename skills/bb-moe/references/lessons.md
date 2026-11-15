@@ -39,7 +39,8 @@ Each rule here came from something that went wrong, or nearly did, in real coord
     - An agent resumed more than an hour after its last call rewrites its whole context into the prompt cache. That was 19% of the total. Three of those resumes missed the hour by 5 to 12 minutes.
     - Sub-agents for small fetches, and one-line "waiting" turns, cost almost nothing.
 
-    Rules: keep the Lead's context small. Prefer a fresh agent, pointed at the previous agent's log, over waking a long one. If a wait will end near the hour, check back before the hour. Compact or hand off before a long idle.
+- **Reuse topic agents** Use agents per topic. Create a new one only for a topis that was not handled before.
+    Rules: keep the Lead's context small. Prefer a fresh agent, pointed at the previous agent's log, over waking a long or stale one. A fresh agent per topic, not per round: small, recent agents get the follow-up. If a wait will end near the hour, check back before the hour. Compact or hand off before a long idle.
 
 ## Users and agents
 

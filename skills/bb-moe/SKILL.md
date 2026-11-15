@@ -34,7 +34,7 @@ Every sub-agent has an `&` name. Use it in chat, briefs and logs. File names dro
 - An agent with a topic is `&<topic>__<role>`, with two underscores. Examples: `&auth__build`, `&auth__qa`, `&auth__reviewer`, `&debrief__scout`, `&arch__skeptic` (topic: the architecture).
 - For roadmap work, the topic is the task name. All agents on one task share it.
 - An agent that is one of a kind for the whole job has the bare role: `&architect`, `&butler`.
-- A second agent with the same name gets a number: `&auth__build-2`.
+- A new round on the same topic goes to the existing agent.
 
 | Role | Does | Never |
 |---|---|---|
@@ -57,21 +57,28 @@ These are the typical roles, not a fixed set. A task may need others: name them 
 Every step has a brief: [brief-template.md](references/brief-template.md). Agents do not load this skill. Each role has its own file under `references/roles/`, plus [roles/common.md](references/roles/common.md) for every role: how the team talks, logs, reports and hands work on. Every brief gives the absolute paths of `roles/common.md` and the agent's role file. Skip a step only when the user says so.
 
 0. **Chores.** `&butler` does all git chores: merge, rebase, conflict resolution, push, CI diagnosis. It is the one integrator and stays for the whole job. Spawn it at the first chore, or as soon as landing is allowed, before that topic's agents, so it is in the registry when they need it. Topics are built in their own worktrees. `&butler` merges them into the work branch, which is your branch.
-1. **Debrief.** `&debrief__scout` (stronger model, read-only) gathers the context. Then it asks the user every ambiguous point in its own thread. It always asks two things:
-   - How work lands: no commit; commit on agent branches; or land, which means merge into the work branch and push when green.
-   - What QA may start: dev servers, emulators, containers.
 
-   If the job meets the light conditions below, it also offers light as a third question, with its reasons. Only the user decides the weight.
+1. **Debrief.** `&debrief__analyst` (stronger model) + `&debrief__scout` (simpler model)
+Analyst is like Brain: it speaks "business" or "product" language, its goal is to come up with an unambiguous and achievable definition of done. Clarify everything for an architect, making sure architect of a solution can focus on implementation details. It figures out hidden side effects if it exists. It asks the user every ambiguous point about the task in its own thread, by [ask-user.md](references/ask-user.md).
+
+Scout is like Hands: it does chore tasks for analyst: can search for evidence, scan through documentation, test hypothesis in practice, do other chores to keep analyst focused. It provides answers to questions analyst might have when it requires work go get them.
+
+Q&A session: one topic at the time, biggest first, then an understanding sync, even when no questions. Each question wakes you; the debrief is done only at its final answer. After the sync it asks an Operations block, always with two things:
+   - How work lands (commit, pr, deploy)
+   - What QA may start: dev servers, emulators, containers.
+   - If the job meets the light conditions below, it also offers light as a question, with its reasons. Only the user decides the weight.
 
    The reason for the debrief: a builder briefed on guesses builds the wrong thing.
 
    **Weights.** Every job is full unless the user approved light. No offer, or no answer to it, means full. You never change the weight on your own, in either direction.
    - **Full**: all steps below.
-   - **Light**, only with the user's approval. Conditions: one topic, no design decision, no new interface or data shape, no change that spans separately built or deployed parts (services, apps, packages with their own interface). Example: rename one config option and update its two callers in the same package. Steps: debrief, then `&<topic>__build`, `&<topic>__qa` and `&<topic>__reviewer`, with `&butler` if landing is allowed. You name the topic (kebab-case) from the request. The acceptance checks come from `S/reports/debrief.md`. No architect, no `&arch__skeptic`, no review-skeptic, no ADRs. The reviewer is the last gate: its pass goes where the review-skeptic's pass would go.
+   - **Light**, only with the user's approval. Conditions: one topic, no ambiguity in design decisions, change contained within a workspace.
+   Example: rename one config option and update its two callers in the same package. Steps: debrief, then `&<topic>__build`, `&<topic>__qa` and `&<topic>__reviewer`, with `&butler` if landing is allowed. You name the topic (kebab-case) from the request. The acceptance checks come from `S/reports/debrief.md`. No architect, no `&arch__skeptic`, no ADRs. The review is the last gate.
    - **Approval** is an explicit yes to light, quoted from the user. Anything vaguer is not approval: the job stays full. You may offer light again once, as a question. The user may change the weight at any time; you never do.
    - **A light job grows** (a second topic, a design decision, a new interface, a decision that needs an ADR): stop the part that grew. Tell the user why and ask whether to move to full. The original topic may finish building and checking, but it does not land until the user answers. If the answer is full, it gets the full gates (review-skeptic, ADRs where due) before it lands. Until the user answers, nothing new starts on the grown part. Repeat the open question in each report to the user.
    - Record the weight in the snapshot with the user's approval: who approved, when.
-2. **Design.** `&architect` (stronger model, writes only in `S/design/`) produces two files:
+
+2. **Design.** `&architect` (stronger model, writes only in `S/design/`) focuses on implementation details; produces two files:
    - `architecture.md`: Mermaid diagrams, key decisions and the alternatives it rejected.
    - `roadmap.md`: named tasks (task `auth` gives `&auth__build`), dependencies, what runs in parallel, acceptance checks.
 
@@ -85,6 +92,7 @@ Every step has a brief: [brief-template.md](references/brief-template.md). Agent
    - GAP: the design is silent here.
 
    Fix the brief, or go back to `&architect`, before you dispatch.
+
 3. **Implementation**, per roadmap task. Spawn four agents, briefed with the review chain. Spawn the builder first; the other three join its environment. Register each at once: peers look each other up in the registry.
    - `&<topic>__build` and `&<topic>__qa`. The builder gets a new worktree; QA joins the builder's environment.
    - `&<topic>__reviewer` and `&<topic>__review-skeptic` (stronger model, read-only, in the builder's environment). They review after QA's pass, by [review-principles.md](references/review-principles.md). Give them its absolute path. Why a pair: a lone reviewer is either too picky or assumes. The skeptic tests each finding against the codebase's existing patterns.
@@ -94,12 +102,15 @@ Every step has a brief: [brief-template.md](references/brief-template.md). Agent
    An open technical question on the way goes to a `&<topic>__scout`. It recommends; the user decides.
 
    When a second topic starts, spawn `&main__qa` once. It works in your worktree and stays for the whole job. `&butler` calls it for any merge onto a work branch that moved since the topic's base. With one topic, the branch can still move, for example by a rebase or a direct commit. Then `&butler` finds no `&main__qa` in the registry and tells you. Spawn `&main__qa` then, and send `&butler` its thread ID.
+
 4. **Land**, only once the user allowed it:
    1. The last gate passes: the review-skeptic, or the reviewer in a light job.
    2. `&butler` merges.
    3. If the work branch moved since the topic's base, `&main__qa` checks the merged tree.
    4. `&butler` pushes.
+
 5. **Deliver.** If the user needs an artefact, such as a build or an export, the last link builds it from the pushed commit.
+
 6. **Report done.** Say what landed (commit), what was verified on what, what is open, and where the roadmap stands. Offer cleanup as a choice: stop idle agents, remove merged worktrees, close servers you started. The user decides.
 
 Until the user allows commits, builders do not commit. Until the user allows landing, the review chain ends at a report to you, and nothing is merged or pushed.
@@ -119,7 +130,7 @@ Use your in-process agent tool only for throwaway checks that you read yourself,
   - QA, reviewer, review-skeptic: the builder's environment (`--environment <builder env id>`). They then see exactly the builder's code.
   - `&butler`, `&main__qa`: your worktree. It holds the work branch that gets pushed. You stop editing it.
   - Scouts, architect, arch skeptic: read-only in your worktree. They get their own worktree if someone writes in yours.
-- **Fresh agent per task.** Point it at the previous agent's log. Long contexts and resumes after the one-hour prompt cache expired were the biggest costs after the Lead. Follow up an existing agent only on the same task, while its context is small and recent. The standing exceptions are `&butler`, `&main__qa` and `&arch__skeptic`. Replace one of them with a fresh agent when its context grows large.
+- **Fresh agent per topic, not per action.** Follow-up rounds on the same topic go to that topic's existing agents as follow-up briefs: fix rounds, and a small follow-up after landing. Long contexts and resumes after the one-hour prompt cache expired were the biggest costs after the Lead. So replace an agent with a fresh one only when its context is large or it has been idle past the hour. Point the fresh agent at the previous agent's log. `&butler`, `&main__qa` and `&arch__skeptic` are standing agents: they stay across topics and get follow-up briefs; replace one only for the same two reasons.
 - **Models**, all at `--reasoning-level high`. A mid-tier model (`claude-sonnet-5-5`) for builders, QA, `&butler` and delivery. A stronger model (`claude-opus-5-5`) where judgement is the work: debrief, architect, skeptics, reviewer, scouts, writing for agents.
 - **Permissions go in the brief**: what the agent may start, commit and push, and which credentials file it may read. You get credentials with `bb secret request` into `S/secrets/`. Never paste them into a brief.
 - **Register every spawn at once** in the snapshot's team registry: name, thread, environment, task, model, state. Agents find each other there.
