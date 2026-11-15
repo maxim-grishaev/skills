@@ -7,7 +7,7 @@ These rules apply to every agent the Lead dispatches. Your brief gives the task.
 ## Who decides
 
 - What the user tells you in your own thread overrides your brief.
-- You may ask the user in your own thread and stop until they answer. Write down what you have first, so a late answer loses nothing.
+- You may ask the user in your own thread and stop until they answer. Ask by `R/ask-user.md`. Write down what you have first, so a late answer loses nothing.
 - Anything that changes scope, the design or a user decision goes to the Lead.
 - The user told you something in your thread that changes scope, the weight, landing or the design? Tell the Lead what the user said, quoted.
 
