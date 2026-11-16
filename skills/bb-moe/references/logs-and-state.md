@@ -2,7 +2,7 @@
 
 Everything lives under your storage root `S`: the absolute path of the Lead's `$BB_THREAD_STORAGE`. Each agent has its own `$BB_THREAD_STORAGE`, so agents write to `S` by absolute path.
 
-Format and rules: `roles/common.md`, "Log and report". Agents append as they go. The next fresh agent reads the log instead of rediscovering a recipe.
+Agents keep their logs by `roles/common.md`, "Log and report".
 
 ```
 S/
@@ -41,7 +41,7 @@ Append only; mark who decided each decision.
 
 ## State snapshot: `logs/lead-state.md`
 
-Always kept. Rewrite it whole whenever the state changes in a way that matters, and always before a compaction or a long pause. It must be enough to continue the work with nothing else in context. It holds the team registry agents look up thread IDs in.
+Rewrite it whole whenever the state changes in a way that matters, and always before a compaction or a long pause. It must be enough to continue the work with nothing else in context. It holds the team registry, where agents look up thread IDs.
 
 ```markdown
 # Lead state snapshot (written <timestamp>)
@@ -51,7 +51,7 @@ Read this first after a compaction or hand-off. Full history: `logs/lead.md`.
 ## Who I am and how I work here
 
 - Lead of <work>: thread <id>, project <id>, environment <id>, worktree <path>.
-- Storage root: <S>. Weight: <full (default) / light, approved by the user on <date>>.
+- Storage root: <S>. Weight: <light / full>, set by the Lead after the debrief on <date>. Later changes: <<weight>, approved by the user on <date>: <reason> / none>.
 - Landing allowed for: <no topic / all topics / named topics>. Commits allowed: <yes / no>.
 - How the user wants replies: <style>.
 
@@ -94,34 +94,6 @@ Read this first after a compaction or hand-off. Full history: `logs/lead.md`.
 1. <question or action, with your recommendation>
 ```
 
-## ADRs: `design/adr/NNNN-<slug>.md`
-
-An ADR records one decision. Write one only when at least one holds:
-
-- The decision is hard to reverse.
-- It crosses topics, so several agents build on it.
-- The user chose between real alternatives.
-
-Not for every choice. A light job has none: a decision that needs one makes the job full. `&architect` writes most ADRs; whoever makes such a decision later writes its ADR. Number ADRs in order: `0001-<slug>.md`. If the project keeps its own ADRs, follow its format; write into the repo only if the user allowed it.
-
-```markdown
-# <NNNN>. <decision in one line> (<date>)
-
-Status: <proposed / accepted by <the user or the Lead> / superseded by NNNN>
-
-## Context
-<What forces the decision. Facts, marked seen or inferred.>
-
-## Decision
-<What we do.>
-
-## Options rejected
-- <option>: <why not>
-
-## Consequences
-<What gets easier, what gets harder, what to watch.>
-```
-
 ## Findings file: `reports/<work>-findings.md`
 
 For results the user wants later, for a write-up or a decision record. One numbered entry per finding; numbers continue across sections:
@@ -135,4 +107,4 @@ For results the user wants later, for a write-up or a decision record. One numbe
 - **Options / decision:** <choices; the user's decision quoted if made>
 ```
 
-Several agents may append at once. Re-read the file right before you write, and append your own section. Never rewrite other entries.
+Several agents may append at once: by `roles/common.md`, "Log and report", re-read right before you write and never rewrite other entries.

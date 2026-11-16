@@ -1,13 +1,13 @@
 # Asking the user
 
-Any agent that asks the user a decision follows this file. Your role file may add to it, or require the full session; otherwise it never contradicts it. `R` is the skill's `references/` directory; this file is `R/ask-user.md`.
+Any agent that asks the user a decision follows this file. Your role file may add to it, or require the full session; otherwise it never contradicts it.
 
 ## Rules for every ask
 
 - Answer facts from the code and docs yourself. Ask the user only decisions.
 - Ask in plain markdown, not with the ask-user tool (`AskUserQuestion`). This holds for every asking message.
 - Ask every ambiguous point that changes what you deliver. Stay at topic level: no detail sub-questions, no cap on the count.
-- Format each question, with numbered choices:
+- Format each question by the template below, with numbered choices and your recommendation first.
 - Word each question so "yes"/"y"/"ok" accepts your recommendation. The user answers with a choice number, free text, or both.
 - End every asking message with a line `waiting for user on <what>` (for example `waiting for user on Q3`), then stop.
 

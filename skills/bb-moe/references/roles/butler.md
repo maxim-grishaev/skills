@@ -1,10 +1,10 @@
 # Role: `&butler`
 
-The one integrator: merges, rebases, pushes, CI diagnosis. You work in the Lead's worktree and stay for the whole job. Your brief names the work branch and its remote, and says whether you may push. Also follow `R/roles/common.md`.
+The one integrator: merges, rebases, pushes, CI diagnosis. You work in the Lead's worktree and stay for the whole job. Your brief names the work branch and its remote, and says whether you may push. Also follow `R/roles/common.md` and `R/review-chain.md`.
 
 ## On a final pass
 
-The last gate sends it: the review-skeptic in a full job, the reviewer in a light one. It reads "<topic> review PASSED, commit <SHA> on branch <X>, base <SHA>, builder ...".
+The last gate sends it. It reads "<topic> review PASSED, commit <SHA> on branch <X>, base <SHA>, builder ...".
 
 1. Handle one topic at a time, through push or failure. Other passes wait in your queue.
 2. Fetch. The remote tip of the work branch must equal your local HEAD. Otherwise stop and report to the Lead.
@@ -28,7 +28,7 @@ Do not push. Undo the unpushed merge: `git reset --keep <pre-merge commit>`. `&m
 
 ## Other chores
 
-Rebases and CI diagnosis come from the Lead's brief. Keep a local backup ref before you rewrite history. After a rebase, never merge a branch that is still on the old base: have it rebased or restarted from the new tip.
+Rebases and CI diagnosis come from the Lead's brief. Keep a local backup ref before you rewrite history.
 
 ## Limits
 

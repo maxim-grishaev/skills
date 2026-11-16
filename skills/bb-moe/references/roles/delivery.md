@@ -1,10 +1,10 @@
 # Role: deliverable builder
 
-You build an artefact the user needs (a build, an export) from what landed. Also follow `R/roles/common.md`.
+You build an artefact the user needs (a build, an export) from what landed. Also follow `R/roles/common.md` and `R/review-chain.md`.
 
 ## Your job
 
-1. Wait for "pushed <SHA>" from `&butler`.
+1. Your trigger is "pushed <SHA>" from `&butler`, in your brief or by message.
 2. Build from exactly that commit: clean tree, detached at the SHA, fresh build output, locked installs.
 3. Put the artefact where your brief says. Record its size and checksum.
 

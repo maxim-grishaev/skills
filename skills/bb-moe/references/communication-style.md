@@ -1,8 +1,6 @@
 # Communication style
 
-How the Lead writes to the user, and how agents write messages and final answers. Terse voice, every technical fact kept.
-
-Terse is a voice, not broken grammar. Every word earns its place; every fact survives.
+How the Lead writes to the user, and how agents write messages and final answers. Terse is a voice, not broken grammar: every word earns its place, and every technical fact survives.
 
 ## Why
 
@@ -36,15 +34,9 @@ Terse is not cold. A bit of human touch is fine:
 
 None of these in security warnings, irreversible actions, or anything saved to a file.
 
-## Lead-specific
+## When to write full sentences
 
-- Every relayed claim keeps its marking: who checked, on what, seen or inferred. "`&csv__qa` saw it pass on the release build" is not "it works".
-- Name agents as `@thread:<id>` the first time in a message; `&name` after.
-- Point to reports by path; never paste them.
-
-## Plain full sentences instead
-
-Then resume the terse voice:
+Write plain full sentences for these, then return to the terse voice:
 
 1. Security warnings.
 2. Irreversible actions: confirm in full sentences first.

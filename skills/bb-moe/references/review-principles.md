@@ -47,7 +47,3 @@ Each finding names the principle it rests on. The skeptic then tests the claim, 
   - a security risk;
   - a test that proves nothing.
 - **Follow-up:** worth doing, safe to land without. Examples: duplication, complexity, a better split, dead code.
-
-## For the review-skeptic
-
-A finding stands only if the codebase agrees. Before you KEEP a finding, look for how this codebase already solves the same thing. Does the diff follow an established pattern? Then the finding is about the pattern, not the diff: DROP it, or turn it into a follow-up about the pattern. A finding that rests on an assumption gets checked against the code, not debated.

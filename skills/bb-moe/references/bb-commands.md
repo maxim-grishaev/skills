@@ -1,11 +1,11 @@
 # bb commands for the Lead
 
-Checked against `bb guide` and `--help`. For anything not here: `bb guide threads`, `bb guide thread-messaging`, `bb guide thread-inspection`, `bb guide thread-lifecycle`, or `bb <command> --help`. `S` below stands for your storage root written out as an absolute path. Pass long text with `--prompt-file` / `--message-file`: inside double quotes the shell runs backticks and `$(...)` before bb sees them.
+Checked against `bb guide` and `--help`. For anything not here: `bb guide threads`, `bb guide thread-messaging`, `bb guide thread-inspection`, `bb guide thread-lifecycle`, or `bb <command> --help`. `S` stands for your storage root, written out as an absolute path. Pass long text with `--prompt-file` / `--message-file`: inside double quotes the shell runs backticks and `$(...)` before bb sees them.
 
 ## Context
 
 ```sh
-bb thread update --self --title 'Lead (<task summary>)'   # e.g. 'Lead (CSV export)'
+bb thread update --self --title '<emoji> Lead (<task summary>)'   # e.g. '🧾 Lead (CSV export)'
 bb status                          # project, thread, parent, environment
 echo "$BB_THREAD_STORAGE"          # your storage root S (each child has its own)
 bb thread show "$BB_THREAD_ID" --json
@@ -23,23 +23,23 @@ bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&auth__build' 
   --new-environment worktree --base-branch <sha> \
   --prompt-file S/briefs/auth__build-01-<task>.md --json
 
-# QA, reviewer, review-skeptic: the builder's environment.
-# Reviewers run on claude-opus-5-5. (environmentId from the builder's spawn JSON or `bb thread show <id> --json`)
+# QA, reviewer, review-skeptic: the builder's environment (its environmentId).
+# The reviewer and the review-skeptic run on claude-opus-5-5.
 bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&auth__qa' \
   --provider claude-code --model claude-sonnet-5-5 --reasoning-level high \
   --environment <builder env id> \
   --prompt-file S/briefs/auth__qa-01-<task>.md --json
 
 # debrief, architect, arch skeptic, scouts, &butler, &main__qa: your own environment
-bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&debrief__scout' \
+bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&debrief__analyst' \
   --provider claude-code --model claude-opus-5-5 --reasoning-level high \
   --environment "$BB_ENVIRONMENT_ID" \
-  --prompt-file S/briefs/debrief__scout-01-<task>.md --json
+  --prompt-file S/briefs/debrief__analyst-01-<task>.md --json
 ```
 
 - Without an environment flag, a child gets a fresh worktree of the project's default branch, not your branch.
 - `--base-branch`: a SHA or explicit ref is used exactly. A branch name may resolve to the remote copy when the local one is not ahead. Give a SHA.
-- The JSON answer carries `id` and `environmentId`: put both in the registry.
+- The JSON answer carries `id` and `environmentId`: put both in the registry. `bb thread show <id> --json` gives them later.
 - `--parent-notifications stuck` stops finished turns from waking you. Failures and blockers still wake you. The agent must then send its results with `bb thread tell`. Keep the default (`auto`) unless the wake-ups are noise.
 - Available models on this machine: `bb provider models claude-code --json`.
 

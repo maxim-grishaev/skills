@@ -1,15 +1,25 @@
 # Team rules: every role
 
-These rules apply to every agent the Lead dispatches. Your brief gives the task. This file and your role file (`R/roles/<role>.md`) say how the team works. If your brief and these files differ, the brief wins. If the user says otherwise, the user wins.
+These rules apply to every agent the Lead dispatches. Your brief gives the task. This file and your role file (`R/roles/<role>.md`) say how the team works. If your brief and these files differ, the brief wins. What the user tells you in your own thread wins over both.
 
-`S` is the storage root your brief names (absolute). `R` is the skill's `references/` directory (absolute); this file is `R/roles/common.md`.
+## Terms
+
+- `S` is the storage root your brief names (absolute). `R` is the skill's `references/` directory (absolute); this file is `R/roles/common.md`.
+- A **topic** is the piece of work that one group of agents shares. It is the first part of their names: `&auth__build` and `&auth__qa` work on topic `auth`.
+- The **work branch** is the Lead's branch. Each topic is built on its own branch; `&butler` merges it into the work branch.
+- **Landing** a topic means merging it into the work branch and pushing. It happens only once the user allows it.
+- The job's **weight** is in your brief: full or light. A light job has no architect, no arch skeptic's check and no review-skeptic. A job is light only when all of these hold:
+  - one topic;
+  - no open design decision: every design choice has one clear answer;
+  - the change stays inside one workspace: one package or app, nothing built or deployed separately.
+
+  In a light job, anything that breaks one of these conditions is a scope change. Stop that part and tell the Lead.
+- The **review chain** takes a topic from QA's pass to its final pass; its rules and messages are in `R/review-chain.md`. The **last gate** is the agent whose pass ends it: the review-skeptic in a full job, the reviewer in a light one.
 
 ## Who decides
 
-- What the user tells you in your own thread overrides your brief.
-- You may ask the user in your own thread and stop until they answer. Ask by `R/ask-user.md`. Write down what you have first, so a late answer loses nothing.
-- Anything that changes scope, the design or a user decision goes to the Lead.
-- The user told you something in your thread that changes scope, the weight, landing or the design? Tell the Lead what the user said, quoted.
+- You may ask the user in your own thread and stop until they answer. Ask by `R/ask-user.md`. Write down what you have first, so a late answer loses nothing. Your role file may narrow this: a scout never asks the user; it reports to the agent it works for.
+- Anything that changes scope, the design, the weight, landing or a user decision goes to the Lead. If the user told you such a thing in your thread, tell the Lead what the user said, quoted.
 
 ## Talking to other agents
 
@@ -46,30 +56,3 @@ These rules apply to every agent the Lead dispatches. Your brief gives the task.
 - Shared files, such as a findings file: re-read right before you write. Append your own section. Never rewrite other agents' sections.
 - Your final answer starts with the verdict, because long answers reach the Lead cut short. Then give the shape your brief asks for.
 - Write messages and final answers by `R/communication-style.md`: terse, payload verbatim, full sentences for questions and for anything saved to a file.
-
-## Chains
-
-The review chain runs whether or not landing is allowed:
-
-1. QA passes.
-2. The reviewer reviews.
-3. The review-skeptic passes. In a light job there is none: the reviewer's pass is the final pass.
-
-Before commits are allowed, QA tests the builder's working tree. The last gate sends the final pass: the review-skeptic in a full job, the reviewer in a light one (your brief says which). Before landing is allowed, the final pass goes to the Lead. Once landing is allowed, it goes to `&butler`, always naming a commit.
-
-Message formats:
-
-- Builder to QA: "<topic> ready for QA: <what changed>", plus "commit <SHA>" once commits are allowed.
-- QA to reviewer: "<topic> QA PASSED, commit <full SHA or 'working tree'> on branch <X>, base <SHA>, builder &<topic>__build (<id>)". After any later fix (review, conflict, main QA), QA sends the new pass to the last gate instead.
-- Reviewer to review-skeptic: "<topic> findings: S/reports/<topic>__review-NN.md", plus the fields of QA's message.
-- Builder to the last gate: "<topic> committed tested tree as <SHA> on branch <X>".
-- Last gate to `&butler` (landing allowed) or to the Lead: "<topic> review PASSED, commit <SHA> on branch <X>, base <SHA>, builder &<topic>__build (<id>)".
-- `&butler` to `&main__qa`: "merged <SHA>". The answer is "main QA PASSED <SHA>", or "main QA FAILED <SHA>" with the defects in the QA defect shape (also sent to the builder).
-- `&butler` to the next link: "pushed <full SHA>".
-
-Rules for every link:
-
-- Every chain message carries the commit, its base commit and the builder's thread ID. Any later link can then diff and send a failure back.
-- Act only on the message your brief names as your trigger.
-- A fail or an unclear message: stop and report. Never guess.
-- Several expected messages: handle whichever comes first, one at a time.

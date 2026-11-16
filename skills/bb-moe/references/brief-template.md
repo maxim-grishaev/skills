@@ -12,17 +12,18 @@ A brief carries only what is specific to this agent and task. What a role does, 
 
 | Agent | Role file | Model | Environment | Spawn |
 |---|---|---|---|---|
-| `&debrief__scout` | `debrief.md` | stronger | your worktree, read-only | first, every job. Weight in its opening: "full unless the user approves light" |
-| `&architect` | `architect.md` | stronger | your worktree | after the debrief, full jobs |
+| `&debrief__analyst` | `debrief.md` | stronger | your worktree, read-only | right after its scout. Weight as for the scout |
+| `&debrief__scout` | `scout.md` | mid-tier | your worktree, read-only | first, every job, working for the analyst. Weight in its opening: "not set yet; the Lead sets it after the debrief" |
+| `&architect` | `architect.md` | stronger | your worktree | after the debrief, full jobs, or when the user moves a light job to full for an ADR; stays for the whole job, for later design changes and builders' ADRs |
 | `&arch__skeptic` | `arch-skeptic.md` | stronger | your worktree, read-only | after the user approves the design; stays for the whole job |
-| `&<topic>__scout` | `scout.md` | stronger | your worktree, read-only | on an open technical question |
+| `&<topic>__scout` | `scout.md` | mid-tier | your worktree, read-only | right before the agent it works for, when you expect that agent to need legwork; or later, when it asks |
 | `&<topic>__build` | `build.md` | mid-tier | new worktree from an exact commit | per topic, first of its group |
-| `&<topic>__qa` | `qa.md` | mid-tier | the builder's environment | with the builder |
-| `&<topic>__reviewer` | `reviewer.md` | stronger | the builder's environment, read-only | with the builder; the last gate in a light job |
-| `&<topic>__review-skeptic` | `review-skeptic.md` | stronger | the builder's environment, read-only | with the builder, full jobs only |
+| `&<topic>__qa` | `qa.md` | mid-tier | the builder's environment | when the builder reports "ready for QA" |
+| `&<topic>__reviewer` | `reviewer.md` | stronger | the builder's environment, read-only | when QA passes; the last gate in a light job |
+| `&<topic>__review-skeptic` | `review-skeptic.md` | stronger | the builder's environment, read-only | when the reviewer's findings are in, full jobs only |
 | `&main__qa` | `main-qa.md` | mid-tier | your worktree | when a second topic starts, or when `&butler` asks for it |
-| `&butler` | `butler.md` | mid-tier | your worktree | at the first chore, or once landing is allowed, before that topic's agents; stays for the whole job |
-| deliverable builder | `delivery.md` | mid-tier | its own worktree | as the last link, when the user needs an artefact |
+| `&butler` | `butler.md` | mid-tier | your worktree | at the first chore, or once landing is allowed, before the agents of the topic that will land; stays for the whole job |
+| deliverable builder | `delivery.md` | mid-tier | its own worktree | after `&butler` pushes, when the user needs an artefact |
 
 These are the typical roles. A role not in this table gets its whole job in the brief, and its opening names only `R/roles/common.md`. All models run at `--reasoning-level high`. Command forms: `R/bb-commands.md`.
 
@@ -63,7 +64,7 @@ Read first: <project agent instructions; full job: `S/design/architecture.md`, t
 
 ## Team
 
-<Peers by name; their thread IDs are in the registry. Max rounds: 3 (5 if exploratory). The chain trigger and the next link, if landing is allowed. Light job, reviewer: "You are the last gate.">
+<Peers by name; their thread IDs are in the registry. The chain trigger and the next link, if landing is allowed; the chain itself is in `R/review-chain.md`. Light job, reviewer: "You are the last gate.">
 
 ## Final answer
 
@@ -72,7 +73,8 @@ Read first: <project agent instructions; full job: `S/design/architecture.md`, t
 
 Role-specific parts:
 
-- `&debrief__scout`: the request sources (ticket, doc, earlier branches or PRs).
+- `&debrief__analyst` and `&debrief__scout`: the request sources (ticket, doc, earlier branches or PRs).
+- Every scout: the agent it works for. That agent's brief names the scout and its thread ID.
 - `&arch__skeptic`: later checks are follow-ups: "Check before dispatch: `S/briefs/<file>`".
 - `&butler`: the work branch, its remote and your worktree path; the topics and their builders; `&main__qa` (or "none yet"); the next link after a push (or none); whether it may push.
 - `&main__qa`: the check commands; what it may start.
@@ -80,7 +82,7 @@ Role-specific parts:
 
 ## Follow-up brief
 
-Send a follow-up for any later round on the same topic: a fix round, or a small follow-up after landing. Spawn a fresh agent only when the old one's context is large or it has been idle past the one-hour prompt cache; point it at the old one's log. `&butler`, `&main__qa` and `&arch__skeptic` get follow-ups across topics.
+Send a follow-up for any later round on the same topic, and to standing agents across topics. Agents are not replaced; the one exception is in [SKILL.md](../SKILL.md), "Claims, permissions, failures".
 
 ```markdown
 From the Lead. User: "<exact quote>".
@@ -91,12 +93,3 @@ Task: <one paragraph>. Expected state: <branch, HEAD, clean tree>; if different,
 
 Final answer: <shape>.
 ```
-
-## Chain links ("land it when green")
-
-Builder, QA, reviewer and review-skeptic know the review chain from `R/roles/common.md`, "Chains". In the turn the user allows landing:
-
-- Tell the builder it may commit now.
-- Tell the last gate (the review-skeptic; the reviewer in a light job) that its pass now goes to `&butler`, not to you. A pass it already gave on the uncommitted tree goes once the builder commits that tree.
-- Brief `&butler`, if it does not exist yet.
-- If the user needs an artefact, brief the deliverable builder; its trigger is "pushed <SHA>".

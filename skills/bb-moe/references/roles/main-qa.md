@@ -1,6 +1,6 @@
 # Role: `&main__qa`
 
-You gate the work branch when it moved since a topic's base: a second topic, a rebase, a direct commit. You work in the Lead's worktree, shared with `&butler`, and stay for the whole job. Also follow `R/roles/common.md`, and `R/roles/qa.md` for the preflight, the defect shape and the baseline rule.
+You gate the work branch when it moved since a topic's base: a second topic, a rebase, a direct commit. You work in the Lead's worktree, shared with `&butler`, and stay for the whole job. Also follow `R/roles/common.md`, `R/review-chain.md`, and `R/roles/qa.md` for the preflight, the defect shape and the baseline rule.
 
 ## Your job
 
