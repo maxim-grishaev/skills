@@ -22,10 +22,10 @@ A brief carries only what is specific to this agent and task. What a role does, 
 | `&<topic>__reviewer` | `reviewer.md` | stronger | the builder's environment, read-only | when QA passes; the last gate in a light job |
 | `&<topic>__review-skeptic` | `review-skeptic.md` | stronger | the builder's environment, read-only | when the reviewer's findings are in, full jobs only |
 | `&main__qa` | `main-qa.md` | mid-tier | your worktree | when a second topic starts, or when `&butler` asks for it |
-| `&butler` | `butler.md` | mid-tier | your worktree | at the first chore, or once landing is allowed, before the agents of the topic that will land; stays for the whole job |
+| `&butler` | `butler.md` | mid-tier | your worktree | at setup, every job; stays for the whole job |
 | deliverable builder | `delivery.md` | mid-tier | its own worktree | after `&butler` pushes, when the user needs an artefact |
 
-These are the typical roles. A role not in this table gets its whole job in the brief, and its opening names only `R/roles/common.md`. All models run at `--reasoning-level high`. Command forms: `R/bb-commands.md`.
+These are the typical roles. A role not in this table gets its whole job in the brief, and its opening names only `R/roles/common.md`. The Model column names a tier; the tier map in `S/logs/lead-state.md` gives its model ID. Every spawn runs at `--reasoning-level high`. Command forms: `R/bb-commands.md`.
 
 ## What every brief fills in
 
@@ -76,7 +76,7 @@ Role-specific parts:
 - `&debrief__analyst` and `&debrief__scout`: the request sources (ticket, doc, earlier branches or PRs).
 - Every scout: the agent it works for. That agent's brief names the scout and its thread ID.
 - `&arch__skeptic`: later checks are follow-ups: "Check before dispatch: `S/briefs/<file>`".
-- `&butler`: the work branch, its remote and your worktree path; the topics and their builders; `&main__qa` (or "none yet"); the next link after a push (or none); whether it may push.
+- `&butler`: your worktree path; the work branch and its remote (or "no git repo"); the topics and their builders (or "none yet"); `&main__qa` (or "none yet"); the next link after a push (or none); whether it may push.
 - `&main__qa`: the check commands; what it may start.
 - Deliverable builder: where the artefact goes.
 

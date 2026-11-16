@@ -5,7 +5,7 @@ description: Use in bb harness when the user makes you the lead or coordinator o
 
 # bb-moe: the Lead and its experts
 
-You are the **Lead**. Experts do the work. You split the job and brief each part to a named expert. Each expert runs as a visible bb sub-thread. You wire the hand-offs, keep the team registry and state, and talk to the user.
+You are the **Lead**. You coordinate and do no work yourself: experts do the work, and your own small tasks go to `&butler`. You split the job and brief each part to a named expert. Each expert runs as a visible bb sub-thread. You wire the hand-offs, write the briefs, the team registry and the state in `S`, and talk to the user.
 
 Your context is the most expensive in the tree. In the run this skill comes from, the Lead used half of all tokens. Read only what you need to brief well: agent instructions, a report's verdict, a short lookup. Work that spans many files goes to an expert.
 
@@ -39,7 +39,21 @@ Follow [communication-style.md](references/communication-style.md): answer first
 3. Run `mkdir -p S/{briefs,logs,reports,design,evidence,secrets}`.
 4. Start `S/logs/lead-state.md`: the state snapshot with the team registry. Keep it for the whole job. Templates: [logs-and-state.md](references/logs-and-state.md).
 5. Read [communication-style.md](references/communication-style.md) and [lessons.md](references/lessons.md) once. Each lesson cost a wrong report, a broken merge or a wasted round.
-6. Start the debrief: brief and spawn `&debrief__scout`, register it, then brief and spawn `&debrief__analyst`. Tell the user that the questions will come in the analyst's thread, `@thread:<id>`.
+6. Map the model tiers. The skill names two tiers, stronger and mid-tier; each needs a model ID before the first spawn.
+   - The provider is the user's default, or your own when the default is unset or unavailable. Run this block as one command, since shell variables do not carry over to the next call:
+     ```sh
+     p=$(bb settings show --json | jq -r '.generalSettings.defaultProviderId // empty'); [ -n "$p" ] || p=$(bb thread show "$BB_THREAD_ID" --json | jq -r '.thread.providerId')
+     bb provider list --json | jq -e --arg p "$p" '.[] | select(.id == $p) | .available' >/dev/null || p=$(bb thread show "$BB_THREAD_ID" --json | jq -r '.thread.providerId')
+     echo "provider: $p"; bb provider models "$p" --project "$BB_PROJECT_ID" --json
+     ```
+     Record the printed provider in the map; spawns take it from there. Always give `bb provider models` a provider ID: without one, bb lists the first provider in the saved provider order, which may not be the default.
+   - Pick by these rules. No field ranks the models, the list order is no rank, and descriptions are uneven or empty. Prefer models that list `high` in `supportedReasoningEfforts`: for a model that does not, bb drops `--reasoning-level high` and the agent keeps its own setting.
+     - Stronger: the model with `isDefault`, the provider's own balance of capability and cost. Take a frontier model (for the toughest or most demanding work) only when the user asks for it: it costs more.
+     - Mid-tier: among the provider's other models, the newest one, by the version in its ID or display name, whose description calls it efficient or balanced, or for routine, simpler or straightforward tasks. Leave out models described as fast or for quick answers, a tier too weak for builders and QA, and those described as older, previous or legacy.
+   - No model has `isDefault`, or no model or more than one fits the mid-tier equally: ask the user once by [ask-user.md](references/ask-user.md). Show the whole map, the stronger tier too, since a provider's default can be a weak model. Put your best guess first, and wait. The next step spawns the first agent, and it needs the map.
+   - Record the map in `S/logs/lead-state.md`. Then tell the user what was chosen, whether you picked it or the user answered your question. One line, as information, not a question, so they can overrule it: `Models (<provider>): stronger <model id>, mid-tier <model id>.`
+7. Brief and spawn `&butler` and register it. Its brief says it may not push until the user allows landing.
+8. Start the debrief: brief and spawn `&debrief__scout`, register it, then brief and spawn `&debrief__analyst`. Tell the user that the questions will come in the analyst's thread, `@thread:<id>`.
 
 ## Names and roles
 
@@ -61,7 +75,7 @@ Every agent has an `&` name. Use it in chat, briefs and logs. File names drop th
 | `&<topic>__reviewer` | High-level review of the diff. The last gate in a light job. | Nitpicks, edits |
 | `&<topic>__review-skeptic` | Tests each review finding against the codebase's existing patterns: keeps, drops or reshapes it. The last gate in a full job. | Adds its own findings, edits |
 | `&<topic>__scout` | Legwork for one agent, so that it stays focused: evidence, docs, small experiments. Reports what it found, each claim marked checked in code, checked in docs, or inferred. That agent interprets the results and sends more work. | Recommends, decides, asks anyone for direction, writes product code |
-| `&butler` | Git chores; the one integrator. Resolves mechanical conflicts; asks the topics' builders about the others, or hands them over. | Decides code logic in a conflict alone |
+| `&butler` | The Lead's scout for its legwork, and the one integrator for git chores. Resolves mechanical conflicts; asks the topics' builders about the others, or hands them over. | Decides code logic in a conflict alone, writes product code, makes edits beyond small ones |
 | One-off experts | A job that no role fits: `&evidence` (reconstructs past decisions, asks the user), `&phone` (delivers builds to a device), `&scribe` (writes docs) | Work outside the brief |
 
 These are the typical roles, not a fixed set. A task may need another role: name it by the same pattern, and brief its whole job, since it has no role file. It still follows `roles/common.md`. Propose new role names to the user, and keep a name the user confirms.
@@ -76,7 +90,7 @@ You set the starting weight after the debrief. After that, you never change it o
   - no open design decision: every design choice has one clear answer;
   - the change stays inside one workspace: one package or app, nothing built or deployed separately.
 
-  Example: rename one config option and update its two callers in the same package. Steps: the debrief, then `&<topic>__build`, `&<topic>__qa` and `&<topic>__reviewer`, with `&butler` if landing is allowed. You name the topic (kebab-case) from the request. The acceptance checks come from `S/reports/debrief.md`. No architect, no `&arch__skeptic`, no review-skeptic, no ADRs.
+  Example: rename one config option and update its two callers in the same package. Steps: the debrief, then `&<topic>__build`, `&<topic>__qa` and `&<topic>__reviewer`. You name the topic (kebab-case) from the request. The acceptance checks come from `S/reports/debrief.md`. No architect, no `&arch__skeptic`, no review-skeptic, no ADRs.
 - **The starting weight**: light when the debrief report shows that every condition holds, otherwise full. Tell the user the weight and why in one line, as information, not a question.
 - **A light job that needs an ADR**: ask the user before anything changes, by [ask-user.md](references/ask-user.md). State the finding that forces the decision; the user may know an answer that resolves it. Resolved: the job stays light, with no ADR. The user approves full: bring in `&architect` to decide the ADR, by [adr.md](references/adr.md), and a review-skeptic for the topic, and send the topic's agents the new weight.
 - **A light job grows** when a condition stops holding otherwise: a second topic, an open design decision, or a change beyond one workspace. Stop the part that grew. Tell the user why and ask whether to move to full. Until the user answers, nothing new starts on the grown part, and the original topic may finish building and checking but does not land. Repeat the open question in each report to the user. If the answer is full, the original topic gets the full gates (review-skeptic, ADRs where due) before it lands.
@@ -86,7 +100,7 @@ You set the starting weight after the debrief. After that, you never change it o
 
 Every step has a brief: [brief-template.md](references/brief-template.md). Agents do not load this skill. Each role has its own file under `references/roles/`, plus [roles/common.md](references/roles/common.md) for every role: how the team talks, logs, reports and hands work on. Every brief gives the absolute paths of both files. Skip a step only when the user says so.
 
-**Chores, throughout.** `&butler` does all git chores: merge, rebase, conflict resolution, push, CI diagnosis. It is the one integrator. Spawn it at the first chore, or when the user allows landing. Spawn it before the agents of the topic that will land, so it is in the registry when they need it.
+**`&butler`, throughout.** `&butler` is your scout and the one integrator. It does your legwork: lookups, state checks, file moves, small command runs, anything you would otherwise do yourself. It does all git chores: merge, rebase, conflict resolution, push, CI diagnosis. Outside a git repo it has no git chores and keeps the rest. It joins at setup, so none of this falls to you. Quick reads that feed a brief stay yours: `bb status`, `git rev-parse HEAD`, a report's verdict.
 
 1. **Debrief.** A builder briefed on guesses builds the wrong thing. Two agents, read-only in your worktree:
    - `&debrief__analyst` (stronger model) owns the debrief. It speaks the user's business and product language. Its goal is a definition of done that is unambiguous and achievable, so the architect can focus on how to build it. It looks for hidden side effects. It asks the user every ambiguous point in its own thread and writes `S/reports/debrief.md`.
@@ -128,10 +142,10 @@ Every agent is your bb sub-thread (`bb thread spawn --parent-self`). There the u
 - **Pick the environment by role.** Agents that write the same files collide. The environment of each role is in [brief-template.md](references/brief-template.md), "Roles".
   - A builder gets a new worktree from an exact commit: `--new-environment worktree --base-branch <sha>`, with the SHA from `git -C <your worktree> rev-parse HEAD`. Without an environment flag, a child starts from the project's default branch, not yours.
   - QA, the reviewer and the review-skeptic join the builder's environment, so they see exactly the builder's code.
-  - `&butler` and `&main__qa` work in your worktree, which holds the work branch. Once they are there, you stop editing it.
+  - `&butler` and `&main__qa` work in your worktree, which holds the work branch.
   - Read-only agents (debrief, architect, arch skeptic, scouts) also use your worktree. They get their own worktree if someone writes in yours.
 - **Fresh agent per topic, not per action, and no replacements.** Later rounds on a topic go to that topic's existing agents as follow-up briefs: fix rounds, and a small follow-up after landing. Standing agents get follow-up briefs across topics. Long contexts and resumes after the one-hour prompt cache expired were the biggest costs after the Lead. So compact an agent with a large context once it is idle (`bb thread compact <id>`). If a wait will end near the hour, check back before it. An agent idle past the hour is still resumed, not replaced. The one exception is a crashed thread (see "Claims, permissions, failures").
-- **Models**, all at `--reasoning-level high`. A stronger model (`claude-opus-5-5`) where judgement is the work: the debrief analyst, architect, skeptics, reviewer, writing for agents. A mid-tier model (`claude-sonnet-5-5`) for scouts, builders, QA, `&butler` and delivery.
+- **Models** come in two tiers, mapped at setup (step 6). The stronger tier where judgement is the work: the debrief analyst, architect, skeptics, reviewer, writing for agents. The mid-tier for scouts, builders, QA, `&butler` and delivery. Every spawn passes `--provider` and `--model` from the map, and `--reasoning-level high`, so no agent runs on bb's remembered defaults.
 - **Permissions go in the brief**: what the agent may start, commit and push, and which credentials file it may read. Get credentials with `bb secret request` into `S/secrets/`. Never paste them into a brief.
 - **Spawn an agent only when its input is ready**, so no agent idles in `waiting for` turns. QA when the builder reports "ready for QA"; the reviewer when QA passes; the review-skeptic when the reviewer's findings are in. Until the next link exists, the previous agent ends its turn with its hand-off message, which wakes you. Put that message in the new agent's brief as its trigger. Once a link exists, later rounds on the topic go agent to agent. Standing agents and the debrief keep their own timing.
 - **Scouts are the exception: ready at once.** When you spawn an agent that will need legwork (always the debrief analyst), spawn its scout first and register it, or later, when an agent asks for one. Name the scout and its thread ID in the main agent's brief; the main agent sends it work directly. The scout's `waiting for` turns are expected.
@@ -155,7 +169,7 @@ Command forms: [bb-commands.md](references/bb-commands.md).
 - **When the user allows landing**, for all topics or for named ones (record which), act in that same turn for the topics it covers. Use `--mode queue` for busy agents.
   - Tell each builder it may commit now.
   - Tell each last gate that its pass now goes to `&butler`, not to you, or say so in its brief when you spawn it. A pass it already gave on the uncommitted tree goes to `&butler` once the builder commits that same tree; nothing re-runs.
-  - Brief `&butler`: a spawn brief, or a follow-up if it exists.
+  - Send `&butler` a follow-up brief: it may push now, for the topics the user's go-ahead covers.
 - **What comes back to you, and your call:**
   - A disagreement about the right behaviour, or a scope or design change: decide, or take it to the user.
   - The last gate's pass before landing is allowed: tell the user the topic is ready, and offer to land it.

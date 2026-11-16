@@ -15,23 +15,28 @@ Any agent that asks the user a decision follows this file. Your role file may ad
 
 ```
 ❓ Q<n> - <title>: <what you know, then the choices>
+
 ➡️ 1. <your recommended answer>
+
 2. <second answer>
-3. <third answer>
+
+n. <n-th answer>
 ```
+
+Put a blank line after the question line and between choices, as shown. bb's Markdown renderer joins lines that a single newline separates, so without blank lines the choices show as one paragraph.
 
 ## Simple or full
 
 Genuine ambiguity: you cannot pick the answer with confidence, and the choices lead to different work.
 
 - **Full session:** two or more questions, and genuine ambiguity. Both must hold. Follow "Full session" below.
-- **Simple case:** one question, or no genuine ambiguity. Send the question in the format above, end with the waiting line, and go on with the answer. There is no follow-up check and no understanding sync.
+- **Simple case:** one question, or no genuine ambiguity. Send the question in the format above, end with the waiting line, and go on with the answer. There is no understanding sync.
 
 ## Full session
 
 - Sort by impact and risk, biggest first. A question that depends on an open one waits behind it.
 - Send one question per message, never a round.
-- The answer was a plain choice? Ask the next question. It was free text or opened a new point? Ask "Move on, or follow up on Q<n>?" first.
+- After each answer, fold it in and send the next question at once. An answer that opens a new point adds a question to the queue, sorted like the rest. The user follows up on an earlier question on their own when they want to.
 - After the last answer, send one message with every question and its answer. Ask: "Did I get it right?" End it with `waiting for user on the sync`.
 - A correction re-opens that point only. Ask it again, then send a short re-sync.
 - Go on with your work only after the user confirms.

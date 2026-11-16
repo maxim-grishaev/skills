@@ -8,31 +8,34 @@ Checked against `bb guide` and `--help`. For anything not here: `bb guide thread
 bb thread update --self --title '<emoji> Lead (<task summary>)'   # e.g. '🧾 Lead (CSV export)'
 bb status                          # project, thread, parent, environment
 echo "$BB_THREAD_STORAGE"          # your storage root S (each child has its own)
-bb thread show "$BB_THREAD_ID" --json
+bb thread show "$BB_THREAD_ID" --json   # thread.providerId: your own provider
+bb settings show --json                 # generalSettings.defaultProviderId: the user's default provider
+bb provider list --json                 # providers, with `available`
+bb provider models <provider> --project "$BB_PROJECT_ID" --json   # its models, for the tier map (SKILL.md, setup step 6)
 bb thread context --self --json    # how full your context is
 ```
 
 ## Spawn an agent
 
-Always `--project` and `--parent-self`; choose the environment by role.
+Always `--project` and `--parent-self`; choose the environment by role. `--provider` and `--model` come from the tier map in `S/logs/lead-state.md` (SKILL.md, "Models"); the role's tier is in `brief-template.md`, "Roles".
 
 ```sh
 # builder (&<topic>__build): its own new worktree from an exact commit
 bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&auth__build' \
-  --provider claude-code --model claude-sonnet-5-5 --reasoning-level high \
+  --provider <provider> --model <mid-tier model> --reasoning-level high \
   --new-environment worktree --base-branch <sha> \
   --prompt-file S/briefs/auth__build-01-<task>.md --json
 
 # QA, reviewer, review-skeptic: the builder's environment (its environmentId).
-# The reviewer and the review-skeptic run on claude-opus-5-5.
+# The reviewer and the review-skeptic run on the stronger tier.
 bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&auth__qa' \
-  --provider claude-code --model claude-sonnet-5-5 --reasoning-level high \
+  --provider <provider> --model <mid-tier model> --reasoning-level high \
   --environment <builder env id> \
   --prompt-file S/briefs/auth__qa-01-<task>.md --json
 
 # debrief, architect, arch skeptic, scouts, &butler, &main__qa: your own environment
 bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&debrief__analyst' \
-  --provider claude-code --model claude-opus-5-5 --reasoning-level high \
+  --provider <provider> --model <stronger model> --reasoning-level high \
   --environment "$BB_ENVIRONMENT_ID" \
   --prompt-file S/briefs/debrief__analyst-01-<task>.md --json
 ```
@@ -41,7 +44,6 @@ bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&debrief__anal
 - `--base-branch`: a SHA or explicit ref is used exactly. A branch name may resolve to the remote copy when the local one is not ahead. Give a SHA.
 - The JSON answer carries `id` and `environmentId`: put both in the registry. `bb thread show <id> --json` gives them later.
 - `--parent-notifications stuck` stops finished turns from waking you. Failures and blockers still wake you. The agent must then send its results with `bb thread tell`. Keep the default (`auto`) unless the wake-ups are noise.
-- Available models on this machine: `bb provider models claude-code --json`.
 
 ## Talk to an agent
 

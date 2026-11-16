@@ -52,6 +52,7 @@ Read this first after a compaction or hand-off. Full history: `logs/lead.md`.
 
 - Lead of <work>: thread <id>, project <id>, environment <id>, worktree <path>.
 - Storage root: <S>. Weight: <light / full>, set by the Lead after the debrief on <date>. Later changes: <<weight>, approved by the user on <date>: <reason> / none>.
+- Model tiers, provider <id>, mapped on <date> by <the Lead / the user>: stronger = <model id>; mid-tier = <model id>. Overruled by the user: <what, date / no>.
 - Landing allowed for: <no topic / all topics / named topics>. Commits allowed: <yes / no>.
 - How the user wants replies: <style>.
 
