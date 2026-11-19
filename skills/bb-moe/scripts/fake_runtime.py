@@ -36,6 +36,9 @@ class FakeRuntime:
         self.model_list = []
         self.wait_result = {"matched": True, "exit": 0}
         self.context = {}
+        self.tree = None  # rows for thread_tree(); None: just the asked thread
+        self.usage = {}  # thread id -> the answer of thread_usage()
+        self.usage_errors = {}  # thread id -> BbError to raise
 
     def _record(self, name, *args):
         self.calls.append((name,) + args)
@@ -127,6 +130,19 @@ class FakeRuntime:
         self._record("context_self")
         return dict(self.context)
 
+    # usage
+    def thread_tree(self, root):
+        self._record("thread_tree", root)
+        if self.tree is None:
+            return [tree_row(root, None, "lead", 0)]
+        return json.loads(json.dumps(self.tree))
+
+    def thread_usage(self, thread_id):
+        self._record("thread_usage", thread_id)
+        if thread_id in self.usage_errors:
+            raise self.usage_errors[thread_id]
+        return json.loads(json.dumps(self.usage.get(thread_id) or thread_usage_answer()))
+
     # providers
     def providers(self):
         self._record("providers")
@@ -139,6 +155,24 @@ class FakeRuntime:
     def models(self, provider, project):
         self._record("models", provider, project)
         return list(self.model_list)
+
+
+def tree_row(thread_id, parent, title, depth, notifications="stuck", archived=False, status="idle"):
+    """A row as thread_tree() returns it."""
+    return {"id": thread_id, "parent": parent, "title": title, "status": status, "provider": "claude-code",
+            "notifications": notifications, "created": "2026-11-16T12:00:00Z", "archived": archived,
+            "depth": depth}
+
+
+def thread_usage_answer(turns=(), requests=(), total=None, session="s1", used=None, model="m1", cost=None):
+    """An answer of thread_usage(). `turns` are start times; `requests` are (time, trigger) pairs, or
+    (time, trigger, "steer")."""
+    return {"model": model, "turns": list(turns),
+            "requests": [{"at": r[0], "trigger": r[1], "sender": None, "about": None,
+                          "steer": len(r) > 2 and r[2] == "steer"} for r in requests],
+            "tokens": None if total is None else {"total": total, "output": 1, "session": session,
+                                                  "partial": True},
+            "context": None if used is None else {"used": used, "window": 1000000, "cost": cost}}
 
 
 def make_git_repo(path):

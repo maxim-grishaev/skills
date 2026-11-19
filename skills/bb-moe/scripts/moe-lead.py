@@ -7,15 +7,17 @@ agent's brief from flags plus a Markdown body on stdin and templates/brief/, sav
 it as S/briefs/<name>-NN-<task>.md and, with --spawn, spawns the agent and adds it
 to the team registry in S/logs/team.json. `follow-up` sends a later brief to a
 registered agent; `tell` sends a short message. `status`, `show`, `output`, `log`
-and `wait` read the team; `retry`, `compact` and `stop` act on an agent.
+and `wait` read the team; `retry`, `compact` and `stop` act on an agent. `usage` reports what the Lead and every thread
+under it used.
 
 S is the Lead's storage root ($BB_THREAD_STORAGE). Run it from the Lead's
-thread; every verb except the first `setup`, and `setup --title` alone (which only renames
-the calling thread), refuses from any other thread.
+thread; every verb except the first `setup`, `setup --title` alone (which only renames
+the calling thread) and `usage --thread <id>` (read-only, from any thread) refuses from any other thread.
 Agents use moe-agent.py. Python 3 standard library only.
 """
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -24,6 +26,7 @@ from moelib import brief as brieflib
 from moelib import messaging
 from moelib import team as teamlib
 from moelib import templates
+from moelib import usage as usagelib
 from moelib.runtime import BbError, BbRuntime
 from moelib.templates import TemplateError
 from moelib.util import Failure, die, now, read_stdin_body, shell_quote
@@ -54,6 +57,9 @@ examples:
   EOF
 
   moe-lead.py status
+  moe-lead.py usage
+  moe-lead.py usage --by notifications --split-at 2026-11-16T15:54:00Z
+  moe-lead.py usage --thread thr_abc123 --json
   moe-lead.py wait auth__build --timeout 20m
   moe-lead.py retry auth__build
 
@@ -466,6 +472,36 @@ def cmd_stop(args, rt):
     return 0
 
 
+# ---------------------------------------------------------------- usage
+
+
+def cmd_usage(args, rt):
+    split = usagelib.parse_split(args.split_at) if args.split_at else None
+    if args.thread:
+        # the one read-only exemption from the Lead check: no team.json needed, nothing written
+        me = rt.whoami()
+        root_thread = args.thread
+        root = os.path.join(me["data_dir"], "thread-storage", root_thread) if me.get("data_dir") else None
+        team = teamlib.load_team(root) if root else None
+        if team and (team.get("lead") or {}).get("thread") != root_thread:
+            team = None  # that registry is not this thread's team
+        read_only = "thread"
+    else:
+        root, team, _ = lead_team(rt)
+        root_thread = team["lead"]["thread"]
+        read_only = "peek" if args.peek else None
+    previous = usagelib.load_snapshot(root) if root else None
+    report = usagelib.collect(rt, root_thread, team, previous, split)
+    if not read_only:
+        usagelib.save_snapshot(root, report)
+    if args.json:
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        print("\n".join(usagelib.render_text(report, args.by, args.threads, read_only,
+                                             usagelib.snapshot_path(root) if root else None)))
+    return 0
+
+
 # ---------------------------------------------------------------- main
 
 
@@ -574,6 +610,27 @@ def build_parser():
         if verb == "log":
             p.add_argument("--all", action="store_true", help="the whole log")
         p.set_defaults(func=func)
+
+    u = sub.add_parser(
+        "usage", help="what the Lead and every thread under it used",
+        description="One short table of the Lead's whole tree: threads, turns, requests, bb's token "
+                    "count (partial: bb keeps only the newest one per thread, for the current runtime "
+                    "session), by topic. The Lead's requests are "
+                    "split by what started them. Exact: threads, turns, requests, context now. The "
+                    "first ask saves S/logs/usage.json; later asks also show what happened since. "
+                    "Run it only when the user asks.")
+    u.add_argument("--threads", action="store_true", help="add one row per thread")
+    u.add_argument("--by", choices=usagelib.BY, default="topic",
+                   help="group the rows by topic (default), the parent-notifications setting, or model")
+    u.add_argument("--split-at", metavar="TIME",
+                   help="ISO time, e.g. 2026-11-16T15:54:00Z: show turns, and the Lead's requests, "
+                        "before and after it")
+    u.add_argument("--peek", action="store_true", help="compare with the last snapshot but do not save one")
+    u.add_argument("--json", action="store_true", help="the full data as JSON, for a UI")
+    u.add_argument("--thread", metavar="ID",
+                   help="report the tree under this thread instead of the Lead's. Works from any "
+                        "thread and needs no team.json; read-only, so it implies --peek")
+    u.set_defaults(func=cmd_usage)
 
     w = sub.add_parser(
         "wait", help="block until an agent is idle",

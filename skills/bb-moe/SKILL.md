@@ -191,4 +191,5 @@ Command forms: [bb-commands.md](references/bb-commands.md).
 
 - Rewrite `lead-state.md` on every change that matters: a spawn, a finished agent, a merge, a user decision, a finished roadmap task. Always rewrite it before a compaction or a long pause. After a compaction, read it first.
 - **Compact at milestones**: the debrief is done, the user approved the design, a topic landed. Rewrite the snapshot, run `moe-lead.py tell butler --kind compact-the-lead`, and end your turn. bb compacts only an idle thread, so `&butler` waits until you are idle, compacts you, and tells you "Lead compacted". That message wakes you: read the snapshot and go on with the next step.
+- **Usage**: only when the user asks how much the job used, run `moe-lead.py usage`. It reports your whole tree (every agent and their throwaways) in about 20 lines; turns, requests and context are exact, bb's token counts are partial and say so. Add `--threads` or `--by notifications|model` when asked for more. It works from any thread on any thread's tree with `--thread <id>`, read-only.
 - Use absolute paths in every command. A `cd` that persists drifts your working directory.

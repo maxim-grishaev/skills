@@ -10,6 +10,8 @@ Every call asks for `--json` and checks the answer: a non-zero exit or
 `{"ok": false, "error": {code, message, hint}}` on stdout raises `BbError`.
 """
 
+import concurrent.futures
+import datetime
 import json
 import os
 import re
@@ -222,6 +224,77 @@ class BbRuntime:
             out["window"] = usage["modelContextWindow"]
         return out
 
+    # ---------------------------------------------------------------- usage
+
+    def thread_tree(self, root):
+        """The thread `root` and every descendant at any depth, archived and hidden included,
+        parents first: [{"id", "parent", "title", "status", "provider", "notifications",
+        "created", "archived", "depth"}]. `root` has depth 0 and parent None. bb lists direct
+        children only, so this asks once per thread (a level at a time, in parallel)."""
+        shown = (self._json(["thread", "show", root]) or {}).get("thread") or {}
+        top = _tree_row(dict(shown, id=root), 0)
+        top["parent"] = None
+        rows, seen, level = [top], {root}, [top]
+        while level:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=USAGE_WORKERS) as pool:
+                answers = list(pool.map(self._children, [r["id"] for r in level]))
+            below = []
+            for parent, kids in zip(level, answers):
+                for kid in kids:
+                    if kid.get("id") and kid["id"] not in seen:
+                        seen.add(kid["id"])
+                        below.append(_tree_row(kid, parent["depth"] + 1))
+            rows += below
+            level = below
+        return rows
+
+    def _children(self, thread_id):
+        data = self._json(["thread", "list", "--parent-thread", thread_id,
+                           "--include-archived", "--include-hidden"])
+        return [t for t in data if isinstance(t, dict)] if isinstance(data, list) else []
+
+    def thread_usage(self, thread_id):
+        """What bb kept of one thread's use, from its whole log and its context:
+        {"model", "turns": [start time], "requests": [{"at", "trigger", "sender", "about", "steer"}],
+         "tokens": None or {"total", "output", "session", "partial": True},
+         "context": None or {"used", "window", "cost"}}. Times are ISO UTC, to the second.
+        `trigger` is user, agent, spawn, child-done, child-failed-or-blocked or other; `sender` is the
+        telling thread (a system notice has none), `about` the child a notice is about; a steered
+        request is a request, not a turn. Tokens are partial: bb keeps only the newest count
+        per thread, and its total covers only the current runtime session (`session` names
+        it). Raises BbError when the log cannot be read; a missing context is None."""
+        events = self._json(["thread", "log", thread_id, "--all"])
+        turns, requests, tokens, model, newest = [], [], None, None, -1
+        for e in events if isinstance(events, list) else []:
+            kind, data = e.get("type"), e.get("data") or {}
+            if kind == EVENT_TURN_STARTED:
+                turns.append(_iso(e.get("createdAt")))
+            elif kind == EVENT_TURN_REQUESTED:
+                requests.append({
+                    "at": _iso(e.get("createdAt")), "trigger": _trigger(data),
+                    "sender": data.get("senderThreadId"),
+                    "about": (data.get("systemMessageSubject") or {}).get("threadId"),
+                    "steer": (data.get("target") or {}).get("kind") == "steer"})
+                model = (data.get("execution") or {}).get("model") or model
+            elif kind == EVENT_TOKENS and (e.get("seq") or 0) >= newest:
+                total = ((data.get(KEY_TOKENS) or {}).get("total")) or {}
+                turn = (e.get("scope") or {}).get("turnId") or ""
+                newest = e.get("seq") or 0
+                tokens = {"total": total.get("totalTokens"), "output": total.get("outputTokens"),
+                          "session": turn.rsplit("-", 1)[0] if turn else None, "partial": True}
+        context = None
+        try:
+            usage = (self._json(["thread", "context", thread_id]) or {}).get("usage") or {}
+        except BbError:
+            usage = {}
+        snapshot = usage.get("snapshot") or {}
+        if "usedTokens" in usage or "usedTokens" in snapshot:
+            context = {"used": snapshot.get("usedTokens", usage.get("usedTokens")),
+                       "window": snapshot.get("contextWindowTokens", usage.get("modelContextWindow")),
+                       "cost": usage.get("cost")}
+        return {"model": snapshot.get("model") or model, "turns": turns, "requests": requests,
+                "tokens": tokens, "context": context}
+
     # ---------------------------------------------------------------- providers
 
     def providers(self):
@@ -241,6 +314,44 @@ class BbRuntime:
         return [{"id": m.get("id"), "name": m.get("displayName"), "description": m.get("description"),
                  "is_default": bool(m.get("isDefault")), "efforts": _effort_names(m)}
                 for m in data if isinstance(m, dict)] if isinstance(data, list) else []
+
+
+USAGE_WORKERS = 8
+# bb's log event names and the one payload key the usage reading depends on; the tests build
+# their events from these, so bb's vocabulary stays in this file
+EVENT_TURN_STARTED = "turn/started"
+EVENT_TURN_REQUESTED = "client/turn/requested"
+EVENT_TOKENS = "thread/tokenUsage/updated"
+KEY_TOKENS = "tokenUsage"
+# bb's systemMessageKind of a request a child's end or trouble sent to its parent
+_CHILD_DONE = ("child-completed",)
+_CHILD_TROUBLE = ("child-failed", "child-needs-attention")
+
+
+def _iso(millis):
+    if not isinstance(millis, (int, float)):
+        return None
+    moment = datetime.datetime.fromtimestamp(millis / 1000, datetime.timezone.utc)
+    return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _trigger(data):
+    """What started a turn request: spawn, user, agent, child-done, child-failed-or-blocked, other."""
+    if data.get("source") == "spawn":
+        return "spawn"
+    initiator, kind = data.get("initiator"), data.get("systemMessageKind")
+    if initiator == "system":
+        if kind in _CHILD_DONE:
+            return "child-done"
+        return "child-failed-or-blocked" if kind in _CHILD_TROUBLE else "other"
+    return initiator if initiator in ("user", "agent") else "other"
+
+
+def _tree_row(t, depth):
+    return {"id": t.get("id"), "parent": t.get("parentThreadId"), "title": t.get("title"),
+            "status": t.get("status"), "provider": t.get("providerId"),
+            "notifications": t.get("parentNotifications"), "created": _iso(t.get("createdAt")),
+            "archived": bool(t.get("archivedAt")), "depth": depth}
 
 
 def _effort_names(model):
