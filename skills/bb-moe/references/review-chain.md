@@ -16,25 +16,34 @@ Until commits are allowed, QA tests the builder's working tree. The last gate se
 
 If you are the last gate:
 
-- Blocking findings go to the builder in one message. The fix goes through QA again, and QA's new pass comes to you. Re-check only those findings.
-- Follow-up findings go to the Lead.
-- A pass on an uncommitted tree waits for the builder's "committed tested tree as <SHA>". Then check, in the shared worktree, that `git status` is clean and HEAD is that SHA.
-- No blocking finding left: send the final pass.
+- Blocking findings go to the builder in one message (`moe-agent.py tell <builder> <<'EOF'`). The fix goes through QA again, and QA's new pass comes to you. Re-check only those findings.
+- Follow-up findings go to the Lead (`moe-agent.py tell-lead`).
+- A pass on an uncommitted tree waits for the builder's `committed` message. Then check, in the shared worktree, that `git status` is clean and HEAD is that SHA.
+- No blocking finding left: send the final pass (`--kind review-passed`).
 
 ## Message formats
 
-- Builder to QA: "<topic> ready for QA: <what changed>", plus "commit <SHA>" once commits are allowed.
-- QA to reviewer: "<topic> QA PASSED, commit <full SHA or 'working tree'> on branch <X>, base <SHA>, builder &<topic>__build (<id>)".
-- Reviewer to review-skeptic: "<topic> findings: S/reports/<topic>__review-NN.md", plus the fields of QA's message.
-- Builder to the last gate: "<topic> committed tested tree as <SHA> on branch <X>".
-- Last gate to `&butler` (landing allowed) or to the Lead: "<topic> review PASSED, commit <SHA> on branch <X>, base <SHA>, builder &<topic>__build (<id>)".
-- `&butler` to `&main__qa`: "merged <SHA>". The answer is "main QA PASSED <SHA>", or "main QA FAILED <SHA>" with the defects in the QA defect shape (also sent to the builder).
-- `&butler` to the next link: "pushed <full SHA>".
+Every message of the chain is sent with `moe-agent.py tell <name> --kind <kind> <flags>`. The wording lives in a template file under `templates/` in the skill's folder, next to `scripts/`; the script fills it from the flags, checks each commit with `git rev-parse` in your worktree, sends it in full, and sends nothing when a flag is missing. `moe-agent.py tell --help` lists the kinds and their flags. `--topic` defaults to the topic of your own name; `--builder` to the registered `&<topic>__build`.
+
+| Kind | From, to | Flags | Template |
+|---|---|---|---|
+| `ready-for-qa` | builder, QA | `--summary`, plus `--commit` once commits are allowed | `chain/ready-for-qa.md`, `chain/ready-for-qa-commit.md` |
+| `qa-passed` | QA, the reviewer (later fixes: the last gate) | `--commit <SHA>` or `working-tree`, `--branch`, `--base` | `chain/qa-passed.md` |
+| `review-findings` | reviewer, review-skeptic | `--review NN` (the report `S/reports/<topic>__review-NN.md`, which must exist), plus the flags of `qa-passed` | `chain/review-findings.md` |
+| `committed` | builder, the last gate | `--commit`, `--branch` | `chain/committed.md` |
+| `review-passed` | last gate, `&butler` (landing allowed) or `lead` | `--commit`, `--branch`, `--base` | `chain/review-passed.md` |
+| `merged` | `&butler`, `&main__qa` | `--commit` | `chain/merged.md` |
+| `main-qa-passed` | `&main__qa`, `&butler` | `--commit` | `chain/main-qa-passed.md` |
+| `main-qa-failed` | `&main__qa`, `&butler` and the builder (two calls) | `--commit`; the defects, in the QA defect shape, on stdin | `chain/main-qa-failed.md` |
+| `pushed` | `&butler`, the next link | `--commit` (the full SHA) | `chain/pushed.md` |
+| `need-main-qa` | `&butler`, `lead` (no `&main__qa` registered) | `--commit` | `lead/need-main-qa.md` |
+
+Every message that names a commit also names the topic, the branch and the base, so a later link can diff and send a failure back.
 
 ## Rules for every link
 
-- Every chain message carries the commit, its base commit and the builder's thread ID. Any later link can then diff and send a failure back.
+- A script that refuses (missing flag, unknown commit, no such report) sent nothing. Fix the call. A `NOT delivered` or `UNCONFIRMED` answer is for the Lead: the first means bb refused twice; the second means bb answered without `sent` or `queued`, the message may have arrived, and the script did not resend it.
 - Act only on the message your brief names as your trigger. It arrives in your brief at spawn, or by message in later rounds.
-- The next link is not in the registry yet? Send your hand-off message, with all its fields, to the Lead with `bb thread tell`. Then end your turn with `waiting for Lead on <next link>`. The Lead spawns the next link with your message as its trigger.
+- The next link is not in the registry yet? Send your hand-off as usual, to its name. The script sends it to the Lead instead (`lead/handoff-unspawned.md`, with your message inside) and prints the line to end your turn with: `waiting for Lead on &<next link>`. The Lead spawns the next link with your message as its trigger.
 - A fail or an unclear message: stop and report. Never guess.
 - Several expected messages: handle whichever comes first, one at a time.

@@ -171,7 +171,7 @@ class StandInTest(unittest.TestCase):
         self.answer([{"id": "m1"}])
         self.answer([{"id": "m1", "displayName": "Model One", "description": "fast", "other": 1}])
         self.assertEqual(self.rt.models("claude-code", "proj_1"),
-                         [{"id": "m1", "name": "Model One", "description": "fast"}])
+                         [{"id": "m1", "name": "Model One", "description": "fast", "is_default": False, "efforts": []}])
 
 
 class InterfaceParityTest(unittest.TestCase):

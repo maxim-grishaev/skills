@@ -71,9 +71,17 @@ class RenderTest(unittest.TestCase):
         self.assertEqual(templates.all_refs(self.dir.name), ["g/a"])
 
 
+# The groups this file covers. chain/ and lead/ belong to test_agent.py, which makes the same check.
+GROUPS = ("brief", "common", "from-lead")
+
+
+def in_groups(refs):
+    return {r for r in refs if r.split("/")[0] in GROUPS}
+
+
 class ShippedTemplatesTest(unittest.TestCase):
-    """Every template file in the skill is rendered by a caller with exactly the variables
-    it declares: a template with no caller, or a caller out of step, fails here."""
+    """Every template file in this file's groups is rendered by a caller with exactly the
+    variables it declares: a template with no caller, or a caller out of step, fails here."""
 
     def test_every_template_renders_through_its_caller(self):
         lead_cli, agent_cli = load_script("moe-lead.py"), load_script("moe-agent.py")
@@ -98,13 +106,22 @@ class ShippedTemplatesTest(unittest.TestCase):
             code, _, err = run_cli(lead_cli, args, lead_rt, "body for %s\n" % role)
             self.assertEqual(code, 0, "%s: %s" % (role, err))
 
+        code, _, err = run_cli(lead_cli, ["brief", "--name", "solo", "--role", "butler", "--task", "alone"],
+                               lead_rt, "body\n")  # no peers: the team section without members
+        self.assertEqual(code, 0, err)
+        for argv, body in ((["follow-up", "--name", "t__qa", "--task", "again"], "do it\n"),
+                           (["tell", "t__qa"], "short\n"),
+                           (["tell", "t__qa", "--kind", "compact-the-lead"], "")):
+            code, _, err = run_cli(lead_cli, argv, lead_rt, body)
+            self.assertEqual(code, 0, err)
+
         team = teamlib.load_team(root)
         agent_rt = FakeRuntime(thread=team["agents"]["t__build"]["thread"], parent="thr_lead")
         for argv in (["tell", "t__qa"], ["tell-lead"], ["tell-lead", "--done"]):
             code, _, err = run_cli(agent_cli, argv + ["--root", root], agent_rt, "hello\n")
             self.assertEqual(code, 0, err)
 
-        self.assertEqual(templates.RENDERED, set(templates.all_refs()),
+        self.assertEqual(in_groups(templates.RENDERED), in_groups(templates.all_refs()),
                          "templates not rendered by any caller (or rendered but not on disk)")
 
 

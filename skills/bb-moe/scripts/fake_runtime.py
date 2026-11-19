@@ -35,6 +35,7 @@ class FakeRuntime:
         self.provider_list = [{"id": "claude-code", "available": True}]
         self.model_list = []
         self.wait_result = {"matched": True, "exit": 0}
+        self.context = {}
 
     def _record(self, name, *args):
         self.calls.append((name,) + args)
@@ -124,7 +125,7 @@ class FakeRuntime:
 
     def context_self(self):
         self._record("context_self")
-        return {}
+        return dict(self.context)
 
     # providers
     def providers(self):

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Messages and lookups for bb-moe agents.
 
-`tell <name>` sends a message to another agent. `tell-lead` sends one to the
-Lead; `--done` marks your final answer. `who` shows the team. Each message body
-comes from stdin, through a quoted heredoc. Run each call as one plain command.
+`tell <name>` sends a message to another agent; `tell <name> --kind K` sends one of
+the review chain's fixed messages (templates/chain/). `tell-lead` sends one to the
+Lead; `--done` marks your final answer. `who` shows the team. `compact-lead` is
+for &butler. Each message body comes from stdin, through a quoted heredoc. Run each
+call as one plain command.
 
 The team registry is found from this thread's parent (the Lead); `--root S`
 overrides that. Python 3 standard library only.
@@ -11,9 +13,12 @@ overrides that. Python 3 standard library only.
 
 import argparse
 import sys
+import time
 
 from moelib import messaging
 from moelib import team as teamlib
+from moelib import templates
+from moelib.brief import ROLES
 from moelib.runtime import BbError, BbRuntime
 from moelib.templates import TemplateError
 from moelib.util import Failure, die, read_stdin_body
@@ -28,28 +33,126 @@ examples:
   <verdict first, at most 8 lines or 1200 characters; the rest goes in a report under S/reports/>
   EOF
 
+  moe-agent.py tell auth__qa --kind ready-for-qa --summary 'CSV export, 4 files'
+
+  moe-agent.py tell lead --kind review-passed --commit <SHA> --base <SHA> --branch <X>
+
   moe-agent.py who auth__qa
 
 The body comes only from stdin, through a quoted heredoc (<<'EOF'): inside
 double quotes the shell runs backticks and $(...) before the script sees them.
+A --kind message has no free body (except main-qa-failed: the defects) and sends
+nothing when a flag is missing or a commit is unknown.
 """
 
+COMPACT_TRIES = 3
+KIND_HELP = {
+    "ready-for-qa": "builder to QA; with --commit once commits are allowed",
+    "qa-passed": "QA to the reviewer (later fixes: to the last gate); --commit may be working-tree",
+    "review-findings": "reviewer to the review-skeptic",
+    "committed": "builder to the last gate: the tested tree is committed",
+    "review-passed": "last gate to &butler (landing allowed) or to the Lead (tell lead)",
+    "merged": "&butler to &main__qa",
+    "main-qa-passed": "&main__qa to &butler",
+    "main-qa-failed": "&main__qa to &butler and the builder; the defects on stdin",
+    "pushed": "&butler to the next link",
+    "need-main-qa": "&butler to the Lead (tell lead): no &main__qa registered",
+}
 
-def _deliver(rt, ctx, to, to_thread, body, kind, mode, done=False):
+
+def _kinds_text():
+    lines = ["With --kind, the message is a template (templates/chain/, templates/lead/) filled from "
+             "flags. Nothing is sent when a flag is missing or a commit is unknown. A kind has no "
+             "free body, except main-qa-failed (the defects, on stdin). `lead` is a valid name with "
+             "a kind. A kind to a `<topic>__<role>` name that is not spawned yet goes to the Lead "
+             "instead, and the script prints the line to end your turn on.", "", "Kinds:"]
+    for name in sorted(messaging.KINDS):
+        kind = messaging.KINDS[name]
+        flags = " ".join("--" + f for f in kind.required if f not in ("topic", "builder"))
+        flags += "".join(" [--%s]" % f for f in kind.optional)
+        if kind.body:
+            flags += " + stdin"
+        lines.append("  %-16s %s" % (name, flags))
+        lines.append("  %-16s %s" % ("", KIND_HELP[name]))
+    lines += ["", "--topic and --builder default to your own name's topic and the registered "
+                  "&<topic>__build."]
+    return "\n".join(lines)
+
+
+def _deliver(rt, ctx, to, to_thread, body, kind, mode, done=False, **more):
     text = messaging.with_sender_line(ctx.name, body, done=done)
-    result = messaging.send(rt, ctx.root, sender=ctx.name, to=to, to_thread=to_thread, text=text,
-                            body=body, kind=kind, mode=mode)
-    return result
+    return messaging.send(rt, ctx.root, sender=ctx.name, to=to, to_thread=to_thread, text=text,
+                          body=body, kind=kind, mode=mode, **more)
+
+
+def _report(result, who, thread):
+    print("delivered to %s (%s): %s%s" % (who, thread, result["delivery"],
+                                         ", id " + result["id"] if result["id"] else ""))
+
+
+def _is_link_name(name):
+    """Looks like a chain agent, `<topic>__<role>`: a name the Lead may not have spawned yet."""
+    return "__" in name and name.rsplit("__", 1)[1] in ROLES
 
 
 def cmd_tell(args, rt):
     ctx = teamlib.agent_context(rt, args.root)
-    to_thread = teamlib.lookup(ctx.team, args.name)
+    name = args.name.lstrip("&")
+    if args.kind:
+        return _tell_kind(args, rt, ctx, name)
+    for flag in messaging.FIELD_HELP:
+        if getattr(args, flag) is not None:
+            raise Failure("--%s goes with --kind: a plain tell has no fields" % flag)
+    to_thread = teamlib.lookup(ctx.team, name)
     body = read_stdin_body("message")
+    result = _deliver(rt, ctx, name, to_thread, body, "tell", "steer" if args.now else "queue")
+    _report(result, "&" + name, to_thread)
+    return 0
+
+
+def _tell_kind(args, rt, ctx, name):
+    agents = ctx.team.get("agents") or {}
+    given = {flag: getattr(args, flag) for flag in messaging.FIELD_HELP}
+    try:
+        ref, variables = messaging.kind_variables(
+            args.kind, given, sender_topic=messaging.topic_of(ctx.name), registered=agents, root=ctx.root)
+    except ValueError as e:
+        raise Failure(str(e).split("\n"), header="error: nothing sent (kind %s):" % args.kind)
+    body_variable = messaging.KINDS[args.kind].body
+    if body_variable:
+        variables[body_variable] = read_stdin_body(body_variable)
+    body = templates.render(ref, **variables)
+    commit = variables.get("commit")
     mode = "steer" if args.now else "queue"
-    result = _deliver(rt, ctx, args.name.lstrip("&"), to_thread, body, "tell", mode)
-    print("delivered to &%s (%s): %s%s" % (args.name.lstrip("&"), to_thread, result["delivery"],
-                                          ", id " + result["id"] if result["id"] else ""))
+    if name.lower() == "lead":
+        lead = ctx.team.get("lead", {}).get("thread")
+        if not lead:
+            raise Failure("%s has no Lead recorded" % teamlib.team_path(ctx.root))
+        result = _deliver(rt, ctx, "lead", lead, body, args.kind, mode, commit=commit)
+        _report(result, "the Lead", lead)
+        return 0
+    if name in agents and agents[name].get("thread"):
+        thread = agents[name]["thread"]
+        result = _deliver(rt, ctx, name, thread, body, args.kind, mode, commit=commit)
+        _report(result, "&" + name, thread)
+        return 0
+    if not _is_link_name(name):
+        teamlib.lookup(ctx.team, name)  # raises, listing the registered names
+    return _forward_unspawned(rt, ctx, name, args.kind, body, commit)
+
+
+def _forward_unspawned(rt, ctx, name, kind, message, commit):
+    """The next link is not registered: the message goes to the Lead, who spawns it with this
+    message as its trigger."""
+    lead = ctx.team.get("lead", {}).get("thread")
+    if not lead:
+        raise Failure("%s has no Lead recorded" % teamlib.team_path(ctx.root))
+    body = templates.render("lead/handoff-unspawned", next=name, message=message)
+    result = _deliver(rt, ctx, "lead", lead, body, "handoff-unspawned", "queue", commit=commit,
+                      extra={"forKind": kind, "next": name})
+    _report(result, "the Lead", lead)
+    print("&%s is not spawned yet, so the Lead has your message. End your turn with: "
+          "waiting for Lead on &%s" % (name, name))
     return 0
 
 
@@ -70,6 +173,45 @@ def cmd_tell_lead(args, rt):
         print("Your final answer, the same text:")
         print(body)
     return 0
+
+
+def cmd_compact_lead(args, rt):
+    ctx = teamlib.agent_context(rt, args.root)
+    if ctx.name != "butler":
+        raise Failure("compact-lead is for &butler only: this thread is %s"
+                      % ("&" + ctx.name if ctx.name else ctx.me.get("thread")))
+    lead = ctx.team.get("lead", {}).get("thread")
+    if not lead:
+        raise Failure("%s has no Lead recorded" % teamlib.team_path(ctx.root))
+    problem = None
+    for attempt in range(1, COMPACT_TRIES + 1):
+        if attempt > 1:
+            time.sleep(5.0)
+        try:
+            waited = rt.wait(lead, args.timeout)
+            if waited["exit"] == 4:
+                problem = "the Lead's thread is in error with nothing queued to recover it"
+                continue
+            if not waited["matched"]:
+                problem = "the Lead was still busy after %s" % args.timeout
+                continue
+            body = templates.render("lead/compacted")
+            text = messaging.with_sender_line(ctx.name, body)
+            result = messaging.send(rt, ctx.root, sender=ctx.name, to="lead", to_thread=lead, text=text,
+                                    body=body, kind="compacted", compact_first=True, attempts=1)
+        except messaging.Unconfirmed:
+            raise
+        except (messaging.NotDelivered, BbError) as e:
+            problem = str(e)
+            continue
+        print("Lead compacted and told (%s): %s%s" % (lead, result["delivery"],
+                                                     ", id " + result["id"] if result["id"] else ""))
+        return 0
+    body = templates.render("lead/not-compacted", tries=str(COMPACT_TRIES), problem=problem)
+    result = _deliver(rt, ctx, "lead", lead, body, "not-compacted", "queue")
+    _report(result, "the Lead", lead)
+    print("Not compacted after %d tries; the Lead was told." % COMPACT_TRIES, file=sys.stderr)
+    return 1
 
 
 def cmd_who(args, rt):
@@ -108,12 +250,17 @@ def build_parser():
     sub = parser.add_subparsers(dest="command", required=True)
 
     t = sub.add_parser("tell", parents=[root], help="send a message to another agent",
+                       formatter_class=argparse.RawDescriptionHelpFormatter,
                        description="Send the body on stdin to a registered agent, queued until it is "
                                    "free, with a sender line. Names go without '&'. An unknown name "
-                                   "lists the registered ones.")
-    t.add_argument("name", help="the agent, e.g. auth__qa")
+                                   "lists the registered ones.\n\n" + _kinds_text())
+    t.add_argument("name", help="the agent, e.g. auth__qa; `lead` with --kind")
     t.add_argument("--now", action="store_true",
                    help="steer the agent's current turn instead of queueing; only to interrupt it")
+    t.add_argument("--kind", choices=sorted(messaging.KINDS), metavar="KIND",
+                   help="send a fixed chain message instead of a free body (kinds listed above)")
+    for flag in messaging.FIELD_HELP:
+        t.add_argument("--" + flag, help="with --kind: " + messaging.FIELD_HELP[flag])
     t.set_defaults(func=cmd_tell)
 
     tl = sub.add_parser("tell-lead", parents=[root], help="send a message to the Lead",
@@ -123,6 +270,13 @@ def build_parser():
     tl.add_argument("--done", action="store_true",
                     help="this is your final answer; the text is echoed for your own final answer")
     tl.set_defaults(func=cmd_tell_lead)
+
+    c = sub.add_parser("compact-lead", parents=[root], help="compact the Lead (&butler only)",
+                       description="Wait until the Lead is idle, compact it and send \"Lead compacted\" "
+                                   "in one bb call. At most %d tries; then tell the Lead it is not "
+                                   "compacted." % COMPACT_TRIES)
+    c.add_argument("--timeout", default="20m", help="how long to wait for the Lead to idle, per try")
+    c.set_defaults(func=cmd_compact_lead)
 
     w = sub.add_parser("who", parents=[root], help="show the team, or one agent",
                        description="Without a name: you, the Lead and every registered agent. "

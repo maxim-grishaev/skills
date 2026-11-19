@@ -20,15 +20,15 @@ Each rule here came from something that went wrong, or nearly did, in real coord
 ## Threads and the harness
 
 - **Dead threads that looked like bugs.** Several agent threads died at once. The cause was an account spend limit; another time, a provider outage.
-   Rule: read a failed thread's own error before you react: `bb thread show <id> --json`, `bb thread log <id>`. Check whether it already resumed by itself. Once the limit or outage is over, run `bb thread retry <id>`. After 3 failed retries, the user decides.
+   Rule: read a failed thread's own error before you react: `moe-lead.py show <name>`, `moe-lead.py log <name>`. Check whether it already resumed by itself. Once the limit or outage is over, run `moe-lead.py retry <name>`. After 3 failed retries the script refuses, and the user decides.
 - **Cut-short reports.** Long final answers arrive cut short in the parent's notification.
-   Rule: agents send the Lead the verdict in about 5 lines and keep the rest in a report under `S/reports/`. Read the report, or `bb thread output <id>`, when a decision needs more.
+   Rule: agents send the Lead the verdict in about 5 lines and keep the rest in a report under `S/reports/`. Read the report, or `moe-lead.py output <name>`, when a decision needs more.
 - **A permission nobody could approve.** An in-process helper's push was refused, and the user had no thread to approve it in. The same push, run as a visible sub-thread, went through.
    Rule: delegated work runs in sub-threads. Report a refusal with the exact command; never work around it.
 - **Directory drift.** The Lead's shell stayed in another directory after a `cd`. Later commands ran in the wrong place. An agent's failed in-place `sed` did the same.
    Rule: use absolute paths in every command.
 - **The Lead's context filled up.** A state snapshot written beforehand made the compaction harmless.
-   Rule: keep `lead-state.md` current. Write it before any compaction or long pause. The Lead cannot compact itself while its turn runs, because `bb thread compact` needs an idle thread; `&butler` compacts it once it is idle.
+   Rule: keep `lead-state.md` current. Write it before any compaction or long pause. The Lead cannot compact itself while its turn runs, because bb compacts only an idle thread; `&butler` compacts it once it is idle.
 
 ## Cost
 

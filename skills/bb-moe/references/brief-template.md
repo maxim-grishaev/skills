@@ -1,12 +1,12 @@
 # Briefs
 
-`moe-lead.py brief` renders and saves each first brief as `S/briefs/<name>-NN-<task>.md` (name without `&`); `python3 <skill>/scripts/moe-lead.py brief --help` lists its flags. `S` is your storage root and `R` is this skill's `references/` directory, both absolute.
+`moe-lead.py brief` renders and saves each first brief as `S/briefs/<name>-NN-<task>.md` (name without `&`); every fixed sentence it writes is a file in `templates/brief/`, so wording changes there; `python3 <skill>/scripts/moe-lead.py brief --help` lists its flags. `S` is your storage root and `R` is this skill's `references/` directory, both absolute.
 
 A brief carries only what is specific to this agent and task. What a role does, and how the team works, is in the role files under `R/roles/`; do not repeat them. Drop a part only if it truly does not apply.
 
 ## What `moe-lead.py` writes
 
-- The opening: the agent's name and role, `--task`, your thread ID, that its finished turns do not reach you, the role files to read, `S` and the weight.
+- The opening: the agent's name and role, `--task`, your thread ID, that its finished turns do not reach you and how it reaches you (`moe-agent.py tell-lead`), the role files to read, `S` and the weight.
 - After your body: `## Where you work` (the environment by role), `## Limits` (`--start`, `--commit`, `--push`, `--creds`) and `## Team` (your thread, `--works-for`, `--peers`, with their thread IDs from `S/logs/team.json`).
 
 ## Roles
@@ -75,10 +75,10 @@ Role-specific parts:
 
 ## Follow-up brief
 
-Send a follow-up for any later round on the same topic, and to standing agents across topics. Save it as `S/briefs/<name>-NN-<task>.md`, numbered on from the agent's last brief, and send it with `bb thread tell <id> --mode queue --message-file <brief>`. Agents are not replaced; the one exception is in [SKILL.md](../SKILL.md), "Claims, permissions, failures".
+Send a follow-up for any later round on the same topic, and to standing agents across topics. `moe-lead.py follow-up --name <name> --task <round> <<'EOF'` takes the body below on stdin, adds the opening line from `templates/brief/follow-up.md`, saves it as `S/briefs/<name>-NN-<task>.md`, numbered on from the agent's last brief, and sends it queued (`--now` interrupts the agent's current turn). Agents are not replaced; the one exception is in [SKILL.md](../SKILL.md), "Claims, permissions, failures".
 
 ```markdown
-From the Lead. User: "<exact quote>".
+User: "<exact quote>".
 
 Task: <one paragraph>. Expected state: <branch, HEAD, clean tree>; if different, stop and report.
 
@@ -86,3 +86,5 @@ Task: <one paragraph>. Expected state: <branch, HEAD, clean tree>; if different,
 
 Final answer: <shape>.
 ```
+
+A short message of at most 8 lines (a nudge, a new thread ID, "go ahead and commit") is `moe-lead.py tell <name>`, not a brief.

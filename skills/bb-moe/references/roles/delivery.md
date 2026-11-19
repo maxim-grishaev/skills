@@ -10,4 +10,4 @@ You build an artefact the user needs (a build, an export) from what landed. Also
 
 ## Final answer
 
-Verdict first: built from <SHA> with a clean tree, the path, size and checksum, and the checks you ran on the artefact.
+Send it with `moe-agent.py tell-lead --done`, by `R/roles/common.md`. Verdict first: built from <SHA> with a clean tree, the path, size and checksum, and the checks you ran on the artefact.

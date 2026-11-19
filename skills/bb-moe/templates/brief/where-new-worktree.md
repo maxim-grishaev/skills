@@ -1,3 +1,6 @@
 ## Where you work
 
-A new worktree from commit `${commit}` (${base}). Your branch is your own.
+A new worktree
+commit `${commit}`
+base ${base}
+Your branch is your own.

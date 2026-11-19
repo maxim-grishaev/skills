@@ -235,10 +235,22 @@ class BbRuntime:
         return (data.get("generalSettings") or {}).get("defaultProviderId")
 
     def models(self, provider, project):
-        """The provider's models: [{"id", "name", "description"}]."""
+        """The provider's models: [{"id", "name", "description", "is_default", "efforts"}];
+        "efforts" lists the reasoning-effort names the model supports."""
         data = self._json(["provider", "models", provider, "--project", project])
-        return [{"id": m.get("id"), "name": m.get("displayName"), "description": m.get("description")}
+        return [{"id": m.get("id"), "name": m.get("displayName"), "description": m.get("description"),
+                 "is_default": bool(m.get("isDefault")), "efforts": _effort_names(m)}
                 for m in data if isinstance(m, dict)] if isinstance(data, list) else []
+
+
+def _effort_names(model):
+    """Effort names from bb's supportedReasoningEfforts: objects with `reasoningEffort`, or plain strings."""
+    names = []
+    for e in model.get("supportedReasoningEfforts") or []:
+        name = e.get("reasoningEffort") if isinstance(e, dict) else e
+        if name:
+            names.append(name)
+    return names
 
 
 def _shell_quote(s):

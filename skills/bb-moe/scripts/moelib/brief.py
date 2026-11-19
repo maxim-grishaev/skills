@@ -82,9 +82,9 @@ def prepare(args, runtime, root, team, me, body, agent_cli):
     registered = name in agents
     if registered and not args.replace:
         errors.append("&%s is already registered (thread %s): send a follow-up brief with "
-                      "`bb thread tell %s --mode queue --message-file <brief>`; use --replace only "
+                      "`moe-lead.py follow-up --name %s --task <task>`; use --replace only "
                       "for a crashed thread the user allowed to replace"
-                      % (name, agents[name].get("thread"), agents[name].get("thread")))
+                      % (name, agents[name].get("thread"), name))
     if args.replace and not registered:
         errors.append("--replace: &%s is not registered" % name)
 
@@ -158,7 +158,7 @@ def prepare(args, runtime, root, team, me, body, agent_cli):
     if args.base and env != "new-worktree":
         errors.append("--base: only with --env new-worktree")
     if where and read_only:
-        where += " " + templates.render("brief/read-only")
+        where += "\n" + templates.render("brief/read-only")
 
     # limits
     if args.push == "yes" and args.role != "butler":
@@ -184,9 +184,12 @@ def prepare(args, runtime, root, team, me, body, agent_cli):
 
     # render
     lead_id = lead.get("thread")
-    files = "`%s/roles/common.md`" % REFERENCES
+    common_file = os.path.join(REFERENCES, "roles", "common.md")
     if role_file:
-        files += " and `%s/roles/%s`" % (REFERENCES, role_file)
+        files = templates.render("brief/files-with-role", common_file=common_file,
+                                 role_file=os.path.join(REFERENCES, "roles", role_file))
+    else:
+        files = templates.render("brief/files-common-only", common_file=common_file)
     opening = templates.render(
         "brief/opening", agent_name=name, what=what, task=task, lead_id=lead_id, agent_cli=agent_cli,
         files=files, root_path=root, weight=team.get("weight") or NO_WEIGHT)
@@ -206,9 +209,12 @@ def prepare(args, runtime, root, team, me, body, agent_cli):
         members.append(templates.render("brief/team-works-for", boss=boss, thread=thread_of(boss)))
     for peer in peers:
         members.append(templates.render("brief/team-peer", peer=peer, thread=thread_of(peer)))
-    team_text = templates.render(
-        "brief/team", lead_id=lead_id, team_file=teamlib.team_path(root),
-        members="".join(m + "\n" for m in members))
+    if members:  # the template places the list; the code only separates its lines
+        team_text = templates.render("brief/team", lead_id=lead_id, team_file=teamlib.team_path(root),
+                                     members="\n".join(members))
+    else:
+        team_text = templates.render("brief/team-no-members", lead_id=lead_id,
+                                     team_file=teamlib.team_path(root))
     text = templates.render(
         "brief/brief", opening=opening, body=body, where=where, limits=limits, team=team_text) + "\n"
 
@@ -227,15 +233,24 @@ def save(root, plan):
     """Write the brief to S/briefs/<name>-NN-<task>.md and return the path. Drafts of an
     unspawned agent are overwritten; a registered agent's briefs are numbered on."""
     name = plan["name"]
+    nn = next_brief_number(root, name) if plan["registered"] else 1
+    return write_brief(root, name, nn, plan["task"], plan["text"])
+
+
+def next_brief_number(root, name):
+    """The number after the highest S/briefs/<name>-NN-*.md; 1 when there is none."""
+    briefs = os.path.join(root, "briefs")
+    if not os.path.isdir(briefs):
+        return 1
+    numbers = [int(m.group(1)) for f in os.listdir(briefs)
+               for m in [re.match(re.escape(name) + r"-(\d+)-", f)] if m]
+    return max(numbers, default=0) + 1
+
+
+def write_brief(root, name, nn, task, text):
     briefs = os.path.join(root, "briefs")
     os.makedirs(briefs, exist_ok=True)
-    if plan["registered"]:
-        numbers = [int(m.group(1)) for f in os.listdir(briefs)
-                   for m in [re.match(re.escape(name) + r"-(\d+)-", f)] if m]
-        nn = max(numbers, default=0) + 1
-    else:
-        nn = 1
-    path = os.path.join(briefs, "%s-%02d-%s.md" % (name, nn, slugify(plan["task"])))
+    path = os.path.join(briefs, "%s-%02d-%s.md" % (name, nn, slugify(task)))
     with open(path, "w") as f:
-        f.write(plan["text"])
+        f.write(text)
     return path

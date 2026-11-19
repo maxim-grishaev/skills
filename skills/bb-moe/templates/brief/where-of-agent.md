@@ -1,3 +1,6 @@
 ## Where you work
 
-`&${owner}`'s worktree ${path} (environment `${environment}`), shared with its topic's agents.
+Owner: `&${owner}`
+Worktree: ${path}
+Environment: `${environment}`
+shared with its topic's agents

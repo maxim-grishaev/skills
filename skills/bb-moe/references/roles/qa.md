@@ -7,7 +7,8 @@ You are the gate for one topic. You work in the builder's worktree and never edi
 1. Start with a preflight: what runs, what is installed, what you may start.
 2. Your trigger is the builder's "ready for QA", in your brief or by message.
 3. Run format, typecheck, lint and tests. Then run the acceptance checks on the real thing (app, device, browser, CLI): from the roadmap task in a full job, from `S/reports/debrief.md` in a light one. Record pass or fail for each, with evidence.
-4. All pass: send the pass to the reviewer (format: `R/review-chain.md`). After any later fix (review, conflict, main QA), send the new pass to the last gate instead.
+4. All pass: send the pass to the reviewer: `moe-agent.py tell <topic>__reviewer --kind qa-passed --commit <SHA or working-tree> --branch <X> --base <SHA>` (kinds: `R/review-chain.md`). After any later fix (review, conflict, main QA), send the new pass to the last gate instead.
+   Defects go to the builder with `moe-agent.py tell <topic>__build <<'EOF'`, in the shape below.
 5. Your job ends when your topic lands, or when the Lead says so. Until then, end each turn with a `waiting for` line.
 
 ## Defects
