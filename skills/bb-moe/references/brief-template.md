@@ -1,10 +1,10 @@
 # Briefs
 
-`moe.py brief` renders and saves each first brief as `S/briefs/<name>-NN-<task>.md` (name without `&`); `python3 <skill>/scripts/moe.py brief --help` lists its flags. `S` is your storage root and `R` is this skill's `references/` directory, both absolute.
+`moe-lead.py brief` renders and saves each first brief as `S/briefs/<name>-NN-<task>.md` (name without `&`); `python3 <skill>/scripts/moe-lead.py brief --help` lists its flags. `S` is your storage root and `R` is this skill's `references/` directory, both absolute.
 
 A brief carries only what is specific to this agent and task. What a role does, and how the team works, is in the role files under `R/roles/`; do not repeat them. Drop a part only if it truly does not apply.
 
-## What `moe.py` writes
+## What `moe-lead.py` writes
 
 - The opening: the agent's name and role, `--task`, your thread ID, that its finished turns do not reach you, the role files to read, `S` and the weight.
 - After your body: `## Where you work` (the environment by role), `## Limits` (`--start`, `--commit`, `--push`, `--creds`) and `## Team` (your thread, `--works-for`, `--peers`, with their thread IDs from `S/logs/team.json`).
@@ -26,11 +26,11 @@ A brief carries only what is specific to this agent and task. What a role does, 
 | `&butler` | `butler.md` | mid-tier | your worktree | at setup, every job; stays for the whole job |
 | deliverable builder | `delivery.md` | mid-tier | its own worktree | after `&butler` pushes, when the user needs an artefact |
 
-These are the typical roles; `moe.py --role` takes each role file's name without `.md`, and its `ROLES` table mirrors this one: change both together. A role not in this table is `--role custom`, with `--what`, `--tier` and `--env`; its brief gives its whole job, and its opening names only `R/roles/common.md`. The Model column names a tier; the tier map in `S/logs/team.json` gives its model ID. Every spawn runs at `--reasoning-level high`.
+These are the typical roles; `moe-lead.py --role` takes each role file's name without `.md`, and its `ROLES` table mirrors this one: change both together. A role not in this table is `--role custom`, with `--what`, `--tier` and `--env`; its brief gives its whole job, and its opening names only `R/roles/common.md`. The Model column names a tier; the tier map in `S/logs/team.json` gives its model ID. Every spawn runs at `--reasoning-level high`.
 
 ## The body you write
 
-Pipe it to `moe.py brief` on stdin, through a quoted heredoc (`<<'EOF'`).
+Pipe it to `moe-lead.py brief` on stdin, through a quoted heredoc (`<<'EOF'`).
 
 ```markdown
 ## The user's request, word for word

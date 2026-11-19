@@ -24,16 +24,17 @@ These rules apply to every agent the Lead dispatches. Your brief gives the task.
 ## Talking to other agents
 
 - Talk to any agent directly when the work needs it. The Lead is not a relay.
-- Send with `bb thread tell <id> --mode queue --message-file - <<'EOF'`, then the text, then `EOF`. Drop `--mode queue` only to interrupt the other agent's current turn.
-- Thread IDs are in the team registry, `S/logs/team.json`, under `agents`. Only the Lead writes it. The Lead's own thread is your parent in `bb status`. Message it like any agent; in a waiting line, call it `Lead`.
+- Send with `moe-agent.py tell <name> <<'EOF'`, then the text, then `EOF`: the name without `&`, the body only from stdin through a quoted heredoc. The script looks the name up in the team registry (`S/logs/team.json`, written only by the Lead), adds a sender line, queues the message for the agent and logs it in `S/logs/messages.jsonl`. `moe-agent.py who` lists the team; an unknown name gets the registered ones. Add `--now` only to interrupt the other agent's current turn.
+- `moe-agent.py` is the command your brief's opening gives, `python3 <path>/moe-agent.py`. Run each call as one plain command: no `;`, `&&` or `|` around it. If it cannot find the team it says what it tried; then pass `--root <S>` with the storage root from your brief.
+- A send the script reports as `NOT delivered` did not happen. Say so in your thread's final answer, with the script's error.
 - Send one message per round, with everything from that round. Send no thanks or acknowledgements.
-- If your turn ends only because you wait, end it with one line: `waiting for &<name> on <what>`.
+- If your turn ends only because you wait, end it with one line: `waiting for &<name> on <what>`; for the Lead, write `Lead`: `waiting for Lead on <what>`.
 
 ## Reaching the Lead
 
 You run with `--parent-notifications stuck`. Your finished turns do not reach the Lead. Only a failed or interrupted turn, or a bb approval prompt, reaches it on its own. Your Markdown questions to the user stay in your thread, and the user answers them there.
 
-Everything this file, your role file, `R/review-chain.md` or your brief tells you to send or report to the Lead goes by `bb thread tell`. That includes your final answer, when your job or your brief's round is done: it tells the Lead you are done. A `waiting for` line, progress and questions to the user stay in your thread. Each message to the Lead starts with the verdict or the question, in at most about 5 lines. The rest goes in a report under `S/reports/`, named by its path. Your final answer in your own thread is the same text.
+Everything this file, your role file, `R/review-chain.md` or your brief tells you to send or report to the Lead goes by `moe-agent.py tell-lead <<'EOF'`, with no name or thread ID: the script finds the Lead. That includes your final answer, when your job or your brief's round is done: send it with `moe-agent.py tell-lead --done`, which tells the Lead you are done and prints the text again for your own final answer. A `waiting for` line, progress and questions to the user stay in your thread. Each message to the Lead starts with the verdict or the question, in at most 8 lines or 1200 characters; the script refuses a longer one. The rest goes in a report under `S/reports/`, named by its path. Your final answer in your own thread is the same text.
 
 ## Claims
 

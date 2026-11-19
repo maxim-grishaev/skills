@@ -7,7 +7,7 @@ Agents keep their logs by `roles/common.md`, "Log and report".
 ```
 S/
   briefs/     <name>-NN-<task>.md: every brief and follow-up, as sent
-  logs/       lead-state.md and team.json (always); lead.md and <name>.md per agent (name without `&`)
+  logs/       lead-state.md, team.json and messages.jsonl (always); lead.md and <name>.md per agent (name without `&`)
   reports/    debrief.md, long reports (<name>-NN.md), the running findings file
   design/     architecture.md, roadmap.md (written by &architect); adr/NNNN-<slug>.md
   evidence/   <name>/: screenshots, captures, command output
@@ -41,7 +41,11 @@ Append only; mark who decided each decision.
 
 ## Team file: `logs/team.json`
 
-The machine-readable state that `moe.py` reads and writes; edit it only through `moe.py`. `setup` writes `lead` (your thread, project, environment, worktree, branch), `tiers` (provider, stronger, mid) and `weight`. `brief --spawn` adds one entry per agent under `agents`: thread, environment, role, model, task, brief path, spawn time. This is the team registry: agents look up thread IDs there.
+The machine-readable state that `moe-lead.py` reads and writes; edit it only through `moe-lead.py`. `setup` writes `lead` (your thread, project, environment, worktree, branch), `tiers` (provider, stronger, mid) and `weight`. `brief --spawn` adds one entry per agent under `agents`: thread, environment, role, model, task, brief path, spawn time, and `permissionMode` when `--permission-mode` was given. This is the team registry: `moe-agent.py` looks up thread IDs there, so agents name each other, never a thread ID. `moe-agent.py who` prints it.
+
+## Message log: `logs/messages.jsonl`
+
+Append-only, one JSON object per line. Every send through the scripts (`moe-agent.py tell` and `tell-lead`; a Lead verb that sends works the same) adds one line per attempt, so a failed try and its retry are two lines. Fields: `time`, `from` (agent name, or `lead`), `to` (agent name, or `lead`), `toThread`, `kind` (`tell`, `tell-lead`, `done`), `topic` (the topic part of the agent's name, or null), `commit` (null until a chain message carries one), `mode` (`queue` or `steer`), `attempt` (1 or 2), `first` (the message's first line), `delivery` (`sent`, `queued` or `failed`), then `messageId` (bb's queued-message ID) or `error`. `delivery` is bb's acceptance, not proof that the target has read it: a queued message is dispatched when the target is free. Read it to see what was sent, to whom, and whether bb took it.
 
 ## State snapshot: `logs/lead-state.md`
 

@@ -17,7 +17,7 @@ bb thread context --self --json    # how full your context is
 
 ## Record the tier map and the weight
 
-`M` stands for `python3 <this skill's directory>/scripts/moe.py`.
+`M` stands for `python3 <this skill's directory>/scripts/moe-lead.py`.
 
 ```sh
 M setup --provider <id> --stronger <model id> --mid <model id>   # setup step 6; writes S/logs/team.json
