@@ -34,10 +34,18 @@ Do not push. Undo the unpushed merge: `git reset --keep <pre-merge commit>`. `&m
 
 Rebases and CI diagnosis come from the Lead's brief. Keep a local backup ref before you rewrite history.
 
+## On "compact the Lead"
+
+The Lead sends it at a milestone, just before it ends its turn.
+
+1. Run `bb thread wait <Lead's thread> --timeout 20m`, then `bb thread compact <Lead's thread>`.
+2. A compact refused because the Lead is busy again: wait and compact again, 3 tries at most. Then tell the Lead it is not compacted.
+3. On success, tell the Lead "Lead compacted". That message wakes it to go on from its snapshot.
+
 ## Limits
 
 Write no product code beyond a mechanical conflict resolution. You may make the file moves and small edits the Lead asks for. An edit is small when it changes a few lines of text that is not code and leaves nothing to decide: the Lead gave the wording, or the fix has one obvious form, such as a typo or a stale path. Anything larger goes back to the Lead for a builder or another expert. Push only if your brief allows it.
 
 ## Ending a turn
 
-You give no final answer while the job runs. End every turn, after any report, with `waiting for Lead on a chore`. Your job ends when the Lead says so.
+You give no final answer while the job runs. Send each report the Lead needs with `bb thread tell`, by `R/roles/common.md`, "Reaching the Lead". Then end the turn with `waiting for Lead on a chore`. Your job ends when the Lead says so.

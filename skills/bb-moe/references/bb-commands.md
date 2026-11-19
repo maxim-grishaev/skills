@@ -15,35 +15,34 @@ bb provider models <provider> --project "$BB_PROJECT_ID" --json   # its models, 
 bb thread context --self --json    # how full your context is
 ```
 
-## Spawn an agent
+## Record the tier map and the weight
 
-Always `--project` and `--parent-self`; choose the environment by role. `--provider` and `--model` come from the tier map in `S/logs/lead-state.md` (SKILL.md, "Models"); the role's tier is in `brief-template.md`, "Roles".
+`M` stands for `python3 <this skill's directory>/scripts/moe.py`.
 
 ```sh
-# builder (&<topic>__build): its own new worktree from an exact commit
-bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&auth__build' \
-  --provider <provider> --model <mid-tier model> --reasoning-level high \
-  --new-environment worktree --base-branch <sha> \
-  --prompt-file S/briefs/auth__build-01-<task>.md --json
-
-# QA, reviewer, review-skeptic: the builder's environment (its environmentId).
-# The reviewer and the review-skeptic run on the stronger tier.
-bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&auth__qa' \
-  --provider <provider> --model <mid-tier model> --reasoning-level high \
-  --environment <builder env id> \
-  --prompt-file S/briefs/auth__qa-01-<task>.md --json
-
-# debrief, architect, arch skeptic, scouts, &butler, &main__qa: your own environment
-bb thread spawn --project "$BB_PROJECT_ID" --parent-self --title '&debrief__analyst' \
-  --provider <provider> --model <stronger model> --reasoning-level high \
-  --environment "$BB_ENVIRONMENT_ID" \
-  --prompt-file S/briefs/debrief__analyst-01-<task>.md --json
+M setup --provider <id> --stronger <model id> --mid <model id>   # setup step 6; writes S/logs/team.json
+M setup --weight light                                            # after the debrief
 ```
 
-- Without an environment flag, a child gets a fresh worktree of the project's default branch, not your branch.
-- `--base-branch`: a SHA or explicit ref is used exactly. A branch name may resolve to the remote copy when the local one is not ahead. Give a SHA.
-- The JSON answer carries `id` and `environmentId`: put both in the registry. `bb thread show <id> --json` gives them later.
-- `--parent-notifications stuck` stops finished turns from waking you. Failures and blockers still wake you. The agent must then send its results with `bb thread tell`. Keep the default (`auto`) unless the wake-ups are noise.
+## Spawn an agent
+
+```sh
+M brief --name auth__build --role build --task 'OAuth sign-in' \
+  --commit no --push no --start 'dev server on port 3000' \
+  --peers auth__qa,butler --spawn <<'EOF'
+## The user's request, word for word
+
+"<exact quote>"
+
+## Your task
+...
+EOF
+```
+
+- Names go without `&`; the script adds it. The body comes only from stdin, through a quoted heredoc: the shell expands nothing inside `<<'EOF'`.
+- The script runs `bb thread spawn --project --parent-self` with the role's environment, the tier's `--provider` and `--model`, `--reasoning-level high` and `--parent-notifications stuck`. A builder's `--base-branch` is your worktree's HEAD as a SHA. It adds the agent's `id` and `environmentId` to `S/logs/team.json`.
+- Without `--spawn` it saves the brief and prints the `bb thread spawn` command it would run.
+- `M brief --help` lists every flag and its default.
 
 ## Talk to an agent
 

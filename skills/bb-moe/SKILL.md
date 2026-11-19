@@ -20,6 +20,7 @@ Your context is the most expensive in the tree. In the run this skill comes from
 - **Last gate**: the agent whose pass ends the review chain: the review-skeptic in a full job, the reviewer in a light one.
 - **Standing agents**: `&butler`, `&main__qa`, `&arch__skeptic` and, in a full job, `&architect`. Each stays for the whole job, across topics.
 - `S`: your storage root, the absolute path in your `$BB_THREAD_STORAGE`. Each child has its own `$BB_THREAD_STORAGE`, so briefs spell out `S` in full.
+- `moe.py`: [scripts/moe.py](scripts/moe.py), run as `python3 <this skill's directory>/scripts/moe.py`. It records the tier map, renders briefs, spawns agents and keeps the team registry `S/logs/team.json`. Its `--help` is the reference.
 
 ## Talking to the user
 
@@ -31,13 +32,14 @@ Follow [communication-style.md](references/communication-style.md): answer first
 - Name the decisions you made yourself, and record them as yours. The user can then overrule them.
 - Name an agent as `@thread:<id>` the first time in a message, and as `&name` after.
 - Ask the user decisions by [ask-user.md](references/ask-user.md).
+- Agents ask the user in their own threads, and the user answers there. You do not relay their questions. If the user answers an agent's question in your thread, forward the user's words to that agent once, verbatim.
 
 ## Set up, first turn
 
 1. Set your title: `bb thread update --self --title '<emoji> <task summary>'`. The summary has 2 to 5 words, for example `🧾 CSV export`.
 2. Run `bb status`. The IDs are also in `$BB_PROJECT_ID`, `$BB_THREAD_ID` and `$BB_ENVIRONMENT_ID`.
 3. Run `mkdir -p S/{briefs,logs,reports,design,evidence,secrets}`.
-4. Start `S/logs/lead-state.md`: the state snapshot with the team registry. Keep it for the whole job. Templates: [logs-and-state.md](references/logs-and-state.md).
+4. Start `S/logs/lead-state.md`: the state snapshot. Keep it for the whole job. Templates: [logs-and-state.md](references/logs-and-state.md).
 5. Read [communication-style.md](references/communication-style.md) and [lessons.md](references/lessons.md) once. Each lesson cost a wrong report, a broken merge or a wasted round.
 6. Map the model tiers. The skill names two tiers, stronger and mid-tier; each needs a model ID before the first spawn.
    - The provider is the user's default, or your own when the default is unset or unavailable. Run this block as one command, since shell variables do not carry over to the next call:
@@ -51,9 +53,9 @@ Follow [communication-style.md](references/communication-style.md): answer first
      - Stronger: the model with `isDefault`, the provider's own balance of capability and cost. Take a frontier model (for the toughest or most demanding work) only when the user asks for it: it costs more.
      - Mid-tier: among the provider's other models, the newest one, by the version in its ID or display name, whose description calls it efficient or balanced, or for routine, simpler or straightforward tasks. Leave out models described as fast or for quick answers, a tier too weak for builders and QA, and those described as older, previous or legacy.
    - No model has `isDefault`, or no model or more than one fits the mid-tier equally: ask the user once by [ask-user.md](references/ask-user.md). Show the whole map, the stronger tier too, since a provider's default can be a weak model. Put your best guess first, and wait. The next step spawns the first agent, and it needs the map.
-   - Record the map in `S/logs/lead-state.md`. Then tell the user what was chosen, whether you picked it or the user answered your question. One line, as information, not a question, so they can overrule it: `Models (<provider>): stronger <model id>, mid-tier <model id>.`
-7. Brief and spawn `&butler` and register it. Its brief says it may not push until the user allows landing.
-8. Start the debrief: brief and spawn `&debrief__scout`, register it, then brief and spawn `&debrief__analyst`. Tell the user that the questions will come in the analyst's thread, `@thread:<id>`.
+   - Record the map with `moe.py setup --provider <id> --stronger <model id> --mid <model id>`; it also records your thread, environment and worktree in `S/logs/team.json`. Then tell the user what was chosen, whether you picked it or the user answered your question. One line, as information, not a question, so they can overrule it: `Models (<provider>): stronger <model id>, mid-tier <model id>.`
+7. Brief and spawn `&butler` (see "Dispatch"). Its brief says it may not push until the user allows landing.
+8. Start the debrief: brief and spawn `&debrief__scout`, then `&debrief__analyst`. Tell the user that the questions will come in the analyst's thread, `@thread:<id>`, and that they answer there.
 
 ## Names and roles
 
@@ -106,7 +108,7 @@ Every step has a brief: [brief-template.md](references/brief-template.md). Agent
    - `&debrief__analyst` (stronger model) owns the debrief. It speaks the user's business and product language. Its goal is a definition of done that is unambiguous and achievable, so the architect can focus on how to build it. It looks for hidden side effects. It asks the user every ambiguous point in its own thread and writes `S/reports/debrief.md`.
    - `&debrief__scout` (mid-tier model) does the legwork for the analyst: it searches for evidence, reads docs and tests hypotheses in practice. The analyst stays focused on the questions.
 
-   The analyst asks in three parts: the task's essence, one question at a time, biggest first; an understanding sync, even with no questions; then an Operations block: whether agents must ask before they commit (yes by default), how work lands (no landing, or merge and push when green), and what QA may start. Each question ends its turn and wakes you. The debrief is done only at the analyst's final answer: the user's decisions, the light check and the report's path.
+   The analyst asks in three parts: the task's essence, one question at a time, biggest first; an understanding sync, even with no questions; then an Operations block: whether agents must ask before they commit (yes by default), how work lands (no landing, or merge and push when green), and what QA may start. Its questions and the user's answers stay in its thread; nothing reaches you until it sends its final answer. The debrief is done only at that final answer: the user's decisions, the light check and the report's path. Then set the weight with `moe.py setup --weight <full / light>`.
 
 2. **Design**, full jobs only. `&architect` (stronger model, writes only in `S/design/`) turns the definition of done into how to build it. It writes two files:
    - `architecture.md`: Mermaid diagrams, key decisions and the alternatives it rejected.
@@ -137,26 +139,27 @@ Every agent is your bb sub-thread (`bb thread spawn --parent-self`). There the u
 
 ## Dispatch
 
-- **One brief file per dispatch**: `S/briefs/<name>-NN-<task>.md`, numbered per agent. Follow-ups are briefs too. Send them with `bb thread tell <id> --mode queue --message-file <brief>`. Drop `--mode queue` only when the message must interrupt the agent's current turn.
+- **Spawn with `moe.py brief`.** One command takes the flags (name, role, task, limits, peers) and the brief's body on stdin, through a quoted heredoc. It fills the rest: the opening with the role files, your thread ID, the weight, the environment and base commit by role, the model by tier, `--parent-notifications stuck`, and the peers' thread IDs. It saves the brief as `S/briefs/<name>-NN-<task>.md`. With `--spawn` it spawns the agent and registers it in `S/logs/team.json`; without, it only saves the brief, for a draft or a check. A bad flag set fails whole, with every error listed, and spawns nothing. Body template: [brief-template.md](references/brief-template.md).
+- **Follow-ups are briefs too**: write `S/briefs/<name>-NN-<task>.md`, numbered on from the agent's last brief, and send it with `bb thread tell <id> --mode queue --message-file <brief>`. Drop `--mode queue` only when the message must interrupt the agent's current turn.
 - **The user's request goes in word for word.** Your reading follows, marked as yours. Builders also get the roadmap task and the design paths.
-- **Pick the environment by role.** Agents that write the same files collide. The environment of each role is in [brief-template.md](references/brief-template.md), "Roles".
-  - A builder gets a new worktree from an exact commit: `--new-environment worktree --base-branch <sha>`, with the SHA from `git -C <your worktree> rev-parse HEAD`. Without an environment flag, a child starts from the project's default branch, not yours.
+- **The environment goes by role.** Agents that write the same files collide. `moe.py` picks each role's environment from [brief-template.md](references/brief-template.md), "Roles"; `--env` overrides it.
+  - A builder gets a new worktree from your worktree's HEAD, as an exact SHA; `--base <ref>` picks another commit.
   - QA, the reviewer and the review-skeptic join the builder's environment, so they see exactly the builder's code.
   - `&butler` and `&main__qa` work in your worktree, which holds the work branch.
   - Read-only agents (debrief, architect, arch skeptic, scouts) also use your worktree. They get their own worktree if someone writes in yours.
 - **Fresh agent per topic, not per action, and no replacements.** Later rounds on a topic go to that topic's existing agents as follow-up briefs: fix rounds, and a small follow-up after landing. Standing agents get follow-up briefs across topics. Long contexts and resumes after the one-hour prompt cache expired were the biggest costs after the Lead. So compact an agent with a large context once it is idle (`bb thread compact <id>`). If a wait will end near the hour, check back before it. An agent idle past the hour is still resumed, not replaced. The one exception is a crashed thread (see "Claims, permissions, failures").
-- **Models** come in two tiers, mapped at setup (step 6). The stronger tier where judgement is the work: the debrief analyst, architect, skeptics, reviewer, writing for agents. The mid-tier for scouts, builders, QA, `&butler` and delivery. Every spawn passes `--provider` and `--model` from the map, and `--reasoning-level high`, so no agent runs on bb's remembered defaults.
-- **Permissions go in the brief**: what the agent may start, commit and push, and which credentials file it may read. Get credentials with `bb secret request` into `S/secrets/`. Never paste them into a brief.
-- **Spawn an agent only when its input is ready**, so no agent idles in `waiting for` turns. QA when the builder reports "ready for QA"; the reviewer when QA passes; the review-skeptic when the reviewer's findings are in. Until the next link exists, the previous agent ends its turn with its hand-off message, which wakes you. Put that message in the new agent's brief as its trigger. Once a link exists, later rounds on the topic go agent to agent. Standing agents and the debrief keep their own timing.
-- **Scouts are the exception: ready at once.** When you spawn an agent that will need legwork (always the debrief analyst), spawn its scout first and register it, or later, when an agent asks for one. Name the scout and its thread ID in the main agent's brief; the main agent sends it work directly. The scout's `waiting for` turns are expected.
-- **Register every spawn at once** in the snapshot's team registry: name, thread, environment, task, model, state. Agents find each other there.
-- **The weight goes into every brief**, so agents know who the last gate is.
+- **Models** come in two tiers, mapped at setup (step 6). The stronger tier where judgement is the work: the debrief analyst, architect, skeptics, reviewer, writing for agents. The mid-tier for scouts, builders, QA, `&butler` and delivery. `moe.py` passes `--provider` and `--model` from the map, and `--reasoning-level high`, so no agent runs on bb's remembered defaults. `--tier` overrides the role's tier.
+- **Permissions go in the brief**, through `moe.py`'s `--start`, `--commit`, `--push` and `--creds`: what the agent may start, commit and push, and which credentials file it may read. Get credentials with `bb secret request` into `S/secrets/`. Never paste them into a brief.
+- **Spawn an agent only when its input is ready**, so no agent idles in `waiting for` turns. QA when the builder reports "ready for QA"; the reviewer when QA passes; the review-skeptic when the reviewer's findings are in. Until the next link exists, the previous agent sends you its hand-off message with `bb thread tell`. Put that message in the new agent's brief as its trigger. Once a link exists, later rounds on the topic go agent to agent. Standing agents and the debrief keep their own timing.
+- **Scouts are the exception: ready at once.** When you spawn an agent that will need legwork (always the debrief analyst), spawn its scout first, with `--works-for <agent>`, or later, when an agent asks for one. Put the scout in the main agent's `--peers`; the main agent sends it work directly. The scout's `waiting for` turns are expected.
+- **The registry is `S/logs/team.json`.** `moe.py brief --spawn` adds each agent: name, thread, environment, role, model, task. Agents find each other there. Who waits for whom goes in the snapshot.
+- **The weight goes into every brief**, so agents know who the last gate is. `moe.py` takes it from `S/logs/team.json`.
 
 Command forms: [bb-commands.md](references/bb-commands.md).
 
 ## Hand-offs
 
-- **Agents talk to each other directly**, by [roles/common.md](references/roles/common.md). The chain's messages and rules are in [review-chain.md](references/review-chain.md). You are not a relay. You own the team registry in `S/logs/lead-state.md`; only you write it.
+- **Agents talk to each other directly**, by [roles/common.md](references/roles/common.md). The chain's messages and rules are in [review-chain.md](references/review-chain.md). You are not a relay. You own the team registry `S/logs/team.json`; only you write it, through `moe.py`.
 - **Wire the chain.** Each brief names the agent's trigger message and whom it tells next. The first time through a topic, each new link passes through you once, because you spawn it when its input is ready. After that, with landing allowed, the chain runs without a hop through you:
   1. The builder commits.
   2. QA passes.
@@ -176,7 +179,7 @@ Command forms: [bb-commands.md](references/bb-commands.md).
   - QA's baseline run on the previous commit found an old bug: tell the user and offer a new task.
   - Follow-up findings from a review: the findings file, or a new task.
   - A merge conflict nobody can settle: read the builders' and `&butler`'s logs, then decide.
-- **Know when an agent is done.** Every finished agent turn wakes you. A final answer with a verdict means done. Questions, or a `waiting for &x on <what>` line, mean not done. Wait by ending your turn. Use `bb thread wait <id>` only when your very next action needs the result.
+- **Know when an agent is done.** Agents run with `--parent-notifications stuck`, so a finished turn does not wake you. You are woken by the messages agents send you with `bb thread tell` (the list is in [roles/common.md](references/roles/common.md), "Reaching the Lead"), and by bb when an agent's turn fails, is interrupted or waits on an approval. A final answer with a verdict means done. Wait by ending your turn. An agent that forgets its tell wakes no one: when a wait runs long, check `bb thread list` or `bb thread show <id>` before you wait more. Use `bb thread wait <id>` only when your very next action needs the result.
 
 ## Claims, permissions, failures
 
@@ -184,12 +187,12 @@ Command forms: [bb-commands.md](references/bb-commands.md).
 - A user's belief ("I think X is unused") goes into a brief as a hypothesis to prove, not as a fact.
 - Report a refused permission to the user with the exact command. Nobody works around it, you included.
 - Processes that must keep running, such as a file server or a shared port, go in the snapshot, with the owner and how to stop them.
-- Notifications cut long reports short. Read the full answer with `bb thread output <id>`.
-- A thread failed: read `bb thread show <id> --json` and `bb thread log <id>` before you react. Spend limits and outages look like bugs. Run `bb thread retry <id>`, at most 3 times. If all 3 fail, tell the user and wait: the cause may be outside bb, and the user may fix it or choose to wait. Only with the user's permission, spawn a fresh agent under the same name, point it at the dead one's log, and put its thread ID in the registry row.
+- Agents send a verdict in a few lines and keep the rest in a report under `S/reports/`. Read the report, or `bb thread output <id>`, only when a decision needs more.
+- A thread failed: read `bb thread show <id> --json` and `bb thread log <id>` before you react. Spend limits and outages look like bugs. Run `bb thread retry <id>`, at most 3 times. If all 3 fail, tell the user and wait: the cause may be outside bb, and the user may fix it or choose to wait. Only with the user's permission, spawn a fresh agent under the same name with `moe.py brief --replace --spawn`, and point it at the dead one's log. Then send its peers the new thread ID. A crashed builder keeps its worktree with `--env of:<its name>`.
 - Findings the user wants later, for a write-up or a decision record, go in a running, numbered findings file in `S/reports/`. Template: [logs-and-state.md](references/logs-and-state.md).
 
 ## Your own context
 
 - Rewrite `lead-state.md` on every change that matters: a spawn, a finished agent, a merge, a user decision, a finished roadmap task. Always rewrite it before a compaction or a long pause. After a compaction, read it first.
-- `bb thread compact` works only on an idle thread, so you cannot compact yourself mid-turn. Write the snapshot, end the turn, and ask the user to compact. Or have `&butler` run `bb thread compact <your id>` once you are idle.
+- **Compact at milestones**: the debrief is done, the user approved the design, a topic landed. Rewrite the snapshot, send `&butler` "compact the Lead", and end your turn. `bb thread compact` works only on an idle thread, so `&butler` waits until you are idle, compacts you, and tells you "Lead compacted". That message wakes you: read the snapshot and go on with the next step.
 - Use absolute paths in every command. A `cd` that persists drifts your working directory.

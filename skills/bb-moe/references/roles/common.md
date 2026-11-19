@@ -25,10 +25,15 @@ These rules apply to every agent the Lead dispatches. Your brief gives the task.
 
 - Talk to any agent directly when the work needs it. The Lead is not a relay.
 - Send with `bb thread tell <id> --mode queue --message-file - <<'EOF'`, then the text, then `EOF`. Drop `--mode queue` only to interrupt the other agent's current turn.
-- Thread IDs are in the team registry in `S/logs/lead-state.md`. Only the Lead writes it. The Lead's own thread is your parent in `bb status`. Message it like any agent; in a waiting line, call it `Lead`.
+- Thread IDs are in the team registry, `S/logs/team.json`, under `agents`. Only the Lead writes it. The Lead's own thread is your parent in `bb status`. Message it like any agent; in a waiting line, call it `Lead`.
 - Send one message per round, with everything from that round. Send no thanks or acknowledgements.
 - If your turn ends only because you wait, end it with one line: `waiting for &<name> on <what>`.
-- Keep the full report for when your job is done. A final answer with a verdict tells the Lead you are done. Questions or a `waiting for` line tell it you are not.
+
+## Reaching the Lead
+
+You run with `--parent-notifications stuck`. Your finished turns do not reach the Lead. Only a failed or interrupted turn, or a bb approval prompt, reaches it on its own. Your Markdown questions to the user stay in your thread, and the user answers them there.
+
+Everything this file, your role file, `R/review-chain.md` or your brief tells you to send or report to the Lead goes by `bb thread tell`. That includes your final answer, when your job or your brief's round is done: it tells the Lead you are done. A `waiting for` line, progress and questions to the user stay in your thread. Each message to the Lead starts with the verdict or the question, in at most about 5 lines. The rest goes in a report under `S/reports/`, named by its path. Your final answer in your own thread is the same text.
 
 ## Claims
 
@@ -54,5 +59,5 @@ These rules apply to every agent the Lead dispatches. Your brief gives the task.
 - Log what you looked at, found and decided; dead ends; every refusal with the exact command; every message sent and received. The next agent reads your log instead of rediscovering your recipe.
 - Put evidence in `S/evidence/<name>/` and long reports in `S/reports/<name>-NN.md`.
 - Shared files, such as a findings file: re-read right before you write. Append your own section. Never rewrite other agents' sections.
-- Your final answer starts with the verdict, because long answers reach the Lead cut short. Then give the shape your brief asks for.
+- Your final answer is short: see "Reaching the Lead". The shape your role file or brief gives for it goes in your report `S/reports/<name>-NN.md`, when it does not fit in about 5 lines.
 - Write messages and final answers by `R/communication-style.md`: terse, payload verbatim, full sentences for questions and for anything saved to a file.

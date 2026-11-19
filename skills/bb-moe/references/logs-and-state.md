@@ -7,7 +7,7 @@ Agents keep their logs by `roles/common.md`, "Log and report".
 ```
 S/
   briefs/     <name>-NN-<task>.md: every brief and follow-up, as sent
-  logs/       lead-state.md (always); lead.md and <name>.md per agent (name without `&`)
+  logs/       lead-state.md and team.json (always); lead.md and <name>.md per agent (name without `&`)
   reports/    debrief.md, long reports (<name>-NN.md), the running findings file
   design/     architecture.md, roadmap.md (written by &architect); adr/NNNN-<slug>.md
   evidence/   <name>/: screenshots, captures, command output
@@ -39,20 +39,24 @@ Sources: <ticket, design doc, copies in S>
 
 Append only; mark who decided each decision.
 
+## Team file: `logs/team.json`
+
+The machine-readable state that `moe.py` reads and writes; edit it only through `moe.py`. `setup` writes `lead` (your thread, project, environment, worktree, branch), `tiers` (provider, stronger, mid) and `weight`. `brief --spawn` adds one entry per agent under `agents`: thread, environment, role, model, task, brief path, spawn time. This is the team registry: agents look up thread IDs there.
+
 ## State snapshot: `logs/lead-state.md`
 
-Rewrite it whole whenever the state changes in a way that matters, and always before a compaction or a long pause. It must be enough to continue the work with nothing else in context. It holds the team registry, where agents look up thread IDs.
+Rewrite it whole whenever the state changes in a way that matters, and always before a compaction or a long pause. Together with `logs/team.json`, it must be enough to continue the work with nothing else in context.
 
 ```markdown
 # Lead state snapshot (written <timestamp>)
 
-Read this first after a compaction or hand-off. Full history: `logs/lead.md`.
+Read this first after a compaction or hand-off, then `logs/team.json`. Full history: `logs/lead.md`.
 
 ## Who I am and how I work here
 
-- Lead of <work>: thread <id>, project <id>, environment <id>, worktree <path>.
-- Storage root: <S>. Weight: <light / full>, set by the Lead after the debrief on <date>. Later changes: <<weight>, approved by the user on <date>: <reason> / none>.
-- Model tiers, provider <id>, mapped on <date> by <the Lead / the user>: stronger = <model id>; mid-tier = <model id>. Overruled by the user: <what, date / no>.
+- Lead of <work>. My thread, project, environment, worktree and the weight are in `logs/team.json`.
+- Storage root: <S>. Weight set by the Lead after the debrief on <date>. Later changes: <approved by the user on <date>: <reason> / none>.
+- Model tiers in `logs/team.json`, mapped on <date> by <the Lead / the user>. Overruled by the user: <what, date / no>.
 - Landing allowed for: <no topic / all topics / named topics>. Commits allowed: <yes / no>.
 - How the user wants replies: <style>.
 
@@ -71,10 +75,12 @@ Read this first after a compaction or hand-off. Full history: `logs/lead.md`.
 | What | Where (terminal, port, URL) | Owner | How to stop |
 |---|---|---|---|
 
-## Team registry
+## Agents' state
 
-| Name | Thread | Environment | Task | Model | State (idle / waiting for &x on … / done) |
-|---|---|---|---|---|---|
+IDs, environments and models are in `logs/team.json`.
+
+| Name | State (idle / waiting for &x on … / done) |
+|---|---|
 
 ## Design and roadmap
 

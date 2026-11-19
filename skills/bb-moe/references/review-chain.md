@@ -35,6 +35,6 @@ If you are the last gate:
 
 - Every chain message carries the commit, its base commit and the builder's thread ID. Any later link can then diff and send a failure back.
 - Act only on the message your brief names as your trigger. It arrives in your brief at spawn, or by message in later rounds.
-- The next link is not in the registry yet? End your turn with your hand-off message, with all its fields, then `waiting for Lead on <next link>`. The Lead spawns the next link with it.
+- The next link is not in the registry yet? Send your hand-off message, with all its fields, to the Lead with `bb thread tell`. Then end your turn with `waiting for Lead on <next link>`. The Lead spawns the next link with your message as its trigger.
 - A fail or an unclear message: stop and report. Never guess.
 - Several expected messages: handle whichever comes first, one at a time.
