@@ -36,7 +36,6 @@ Every message of the chain is sent with `moe-agent.py tell <name> --kind <kind> 
 | `main-qa-passed` | `&main__qa`, `&butler` | `--commit` | `chain/main-qa-passed.md` |
 | `main-qa-failed` | `&main__qa`, `&butler` and the builder (two calls) | `--commit`; the defects, in the QA defect shape, on stdin | `chain/main-qa-failed.md` |
 | `pushed` | `&butler`, the next link | `--commit` (the full SHA) | `chain/pushed.md` |
-| `need-main-qa` | `&butler`, `lead` (no `&main__qa` registered) | `--commit` | `lead/need-main-qa.md` |
 
 Every message that names a commit also names the topic, the branch and the base, so a later link can diff and send a failure back.
 

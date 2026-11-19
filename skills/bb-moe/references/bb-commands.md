@@ -54,6 +54,8 @@ M log auth__build         # its event log; --all for everything
 M wait auth__build        # block until idle (--timeout 20m); only when your next step needs it. Exit 0 idle, 2 timeout, 4 errored
 ```
 
+`wait` waits 20 minutes by default. Pass a `--timeout` shorter than your shell's command limit, or the shell may kill the call first; exit 2 then means "timed out", not "refused".
+
 In chat, link an agent as `@thread:<id>`; never build thread URLs by hand. The IDs are in `S/logs/team.json`.
 
 ## Recover and clean up

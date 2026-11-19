@@ -249,6 +249,10 @@ class ChainTest(unittest.TestCase):
                         "--branch", "mg/t"])
         self.assertEqual(self.sent_text(0), "t committed tested tree as %s on branch mg/t" % self.sha)
         self.as_thread("thr_s")
+        self.run_agent(["tell", "lead", "--kind", "review-passed", "--commit", self.sha, "--branch", "mg/t",
+                        "--base", self.base])
+        self.assertEqual(self.rt.sent[0][0], "thr_lead")
+        self.rt.sent.clear()
         self.run_agent(["tell", "butler", "--kind", "review-passed", "--commit", self.sha, "--branch", "mg/t",
                         "--base", self.base])
         self.assertEqual(self.sent_text(0), "t review PASSED, commit %s on branch mg/t, base %s, "
@@ -258,10 +262,6 @@ class ChainTest(unittest.TestCase):
             self.rt.sent.clear()
             self.run_agent(["tell", name, "--kind", kind, "--commit", self.sha])
             self.assertEqual(self.sent_text(0), expected + self.sha)
-        self.rt.sent.clear()
-        self.run_agent(["tell", "lead", "--kind", "need-main-qa", "--commit", self.sha])
-        self.assertEqual(self.rt.sent[0][0], "thr_lead")
-        self.assertEqual(self.sent_text(0), "need main QA, merged " + self.sha)
         self.as_thread("thr_mqa")
         self.run_agent(["tell", "butler", "--kind", "main-qa-passed", "--commit", self.sha])
         self.assertEqual(self.sent_text(0), "main QA PASSED " + self.sha)
@@ -425,7 +425,6 @@ class ChainTest(unittest.TestCase):
              + shas, ""),
             ("thr_butler", ["tell", "main__qa", "--kind", "merged"] + shas, ""),
             ("thr_butler", ["tell", "t__build", "--kind", "pushed"] + shas, ""),
-            ("thr_butler", ["tell", "lead", "--kind", "need-main-qa"] + shas, ""),
             ("thr_mqa", ["tell", "butler", "--kind", "main-qa-passed"] + shas, ""),
             ("thr_mqa", ["tell", "butler", "--kind", "main-qa-failed"] + shas, "defects\n"),
             ("thr_q", ["tell", "t2__reviewer", "--kind", "qa-passed", "--branch", "b", "--base", self.base,
@@ -441,7 +440,7 @@ class ChainTest(unittest.TestCase):
         self.assertEqual(self.run_agent(["compact-lead"])[0], 1)
         in_groups = lambda refs: {r for r in refs if r.split("/")[0] in ("chain", "lead")}
         self.assertEqual(in_groups(templates.RENDERED), in_groups(templates.all_refs()))
-        self.assertEqual(len(in_groups(templates.all_refs())), 14)
+        self.assertEqual(len(in_groups(templates.all_refs())), 13)
 
 
 if __name__ == "__main__":

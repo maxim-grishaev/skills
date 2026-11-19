@@ -112,7 +112,6 @@ KINDS = {
     "main-qa-passed": Kind("chain/main-qa-passed", ("commit",)),
     "main-qa-failed": Kind("chain/main-qa-failed", ("commit",), body="defects"),
     "pushed": Kind("chain/pushed", ("commit",)),
-    "need-main-qa": Kind("lead/need-main-qa", ("commit",)),
 }
 # The flag names a kind may take, with the template variable each fills (default: the same name).
 FIELD_VARIABLE = {"builder": "builder_thread"}

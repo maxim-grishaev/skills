@@ -56,7 +56,6 @@ KIND_HELP = {
     "main-qa-passed": "&main__qa to &butler",
     "main-qa-failed": "&main__qa to &butler and the builder; the defects on stdin",
     "pushed": "&butler to the next link",
-    "need-main-qa": "&butler to the Lead (tell lead): no &main__qa registered",
 }
 
 
