@@ -13,7 +13,8 @@ from moelib.runtime import BbError
 class FakeRuntime:
     def __init__(self, thread="thr_lead", parent=None, project="proj_1", environment="env_lead",
                  data_dir="/fake/data", storage=None):
-        self.me = {"thread": thread, "parent": parent, "project": project, "environment": environment,
+        self.me = {"thread": thread, "parent": parent, "title": None, "project": project,
+                   "environment": environment,
                    "data_dir": data_dir,
                    "storage": storage or os.path.join(data_dir, "thread-storage", thread),
                    "children": []}
@@ -39,6 +40,9 @@ class FakeRuntime:
         self.tree = None  # rows for thread_tree(); None: just the asked thread
         self.usage = {}  # thread id -> the answer of thread_usage()
         self.usage_errors = {}  # thread id -> BbError to raise
+        self.notified = []  # (title, body, thread) of every notify()
+        self.notify_error = None  # a BbError for notify() to raise
+        self.title_error = None  # a BbError for set_title() to raise
 
     def _record(self, name, *args):
         self.calls.append((name,) + args)
@@ -60,6 +64,15 @@ class FakeRuntime:
 
     def set_title(self, title):
         self._record("set_title", title)
+        if self.title_error:
+            raise self.title_error
+        self.me["title"] = title
+
+    def notify(self, title, body, thread=None):
+        self._record("notify", title, body, thread)
+        if self.notify_error:
+            raise self.notify_error
+        self.notified.append((title, body, thread))
 
     # threads
     def show(self, thread_id):

@@ -18,6 +18,7 @@ import time
 from moelib import messaging
 from moelib import team as teamlib
 from moelib import templates
+from moelib import waiting
 from moelib.brief import ROLES
 from moelib.runtime import BbError, BbRuntime
 from moelib.templates import TemplateError
@@ -39,6 +40,10 @@ examples:
 
   moe-agent.py who auth__qa
 
+  moe-agent.py wait-user 'Q2 - model tier'
+  moe-agent.py wait-user --act 'API key for the CSV store'
+  moe-agent.py user-answered
+
 The body comes only from stdin, through a quoted heredoc (<<'EOF'): inside
 double quotes the shell runs backticks and $(...) before the script sees them.
 A --kind message has no free body (except main-qa-failed: the defects) and sends
@@ -46,6 +51,11 @@ nothing when a flag is missing or a commit is unknown.
 """
 
 COMPACT_TRIES = 3
+WAIT_USER_HELP = ("Before you end a turn waiting on the user: put ❓ (a question, references/ask-user.md) "
+                  "or ❗️ (--act: the user must do something else) in front of your own title, replacing "
+                  "the other marker, push one notification that opens this thread, and print the "
+                  "`waiting for user on <what>` line to end the turn on. A bb failure is a warning; the "
+                  "turn still ends on the line.")
 KIND_HELP = {
     "ready-for-qa": "builder to QA; with --commit once commits are allowed",
     "qa-passed": "QA to the reviewer (later fixes: to the last gate); --commit may be working-tree",
@@ -174,6 +184,26 @@ def cmd_tell_lead(args, rt):
     return 0
 
 
+def cmd_wait_user(args, rt):
+    ctx = teamlib.agent_context(rt, args.root)
+    what = args.what.strip()
+    if not what:
+        raise Failure("say what you wait on: `wait-user '<what>'`")
+    lines, warnings = waiting.wait_for_user(
+        rt, ctx.me, "&" + ctx.name, " ".join(what.split()),
+        waiting.ACTION if args.act else waiting.QUESTION)
+    print("\n".join(lines))
+    for w in warnings:
+        print("warning: " + w, file=sys.stderr)
+    return 0
+
+
+def cmd_user_answered(args, rt):
+    ctx = teamlib.agent_context(rt, args.root)
+    print(waiting.clear_marker(rt, ctx.me))
+    return 0
+
+
 def cmd_compact_lead(args, rt):
     ctx = teamlib.agent_context(rt, args.root)
     if ctx.name != "butler":
@@ -269,6 +299,18 @@ def build_parser():
     tl.add_argument("--done", action="store_true",
                     help="this is your final answer; the text is echoed for your own final answer")
     tl.set_defaults(func=cmd_tell_lead)
+
+    wu = sub.add_parser("wait-user", parents=[root], help="mark your title, notify the user, wait",
+                        description=WAIT_USER_HELP)
+    wu.add_argument("what", help="what you wait on, e.g. 'Q2 - model tier'; it is the notification's body")
+    wu.add_argument("--act", action="store_true",
+                    help="the user must do something that is not answering a question: ❗️ instead of ❓")
+    wu.set_defaults(func=cmd_wait_user)
+
+    ua = sub.add_parser("user-answered", parents=[root], help="take the marker off your title",
+                        description="The user answered or acted and nothing stays open: take the leading "
+                                    "❓ or ❗️ off your title. Does nothing without a marker.")
+    ua.set_defaults(func=cmd_user_answered)
 
     c = sub.add_parser("compact-lead", parents=[root], help="compact the Lead (&butler only)",
                        description="Wait until the Lead is idle, compact it and send \"Lead compacted\" "

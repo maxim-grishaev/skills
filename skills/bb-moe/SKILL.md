@@ -31,12 +31,12 @@ Follow [communication-style.md](references/communication-style.md): answer first
 - Offer decisions as choices, with your recommendation first. Independent work goes on meanwhile.
 - Name the decisions you made yourself, and record them as yours. The user can then overrule them.
 - Name an agent as `@thread:<id>` the first time in a message, and as `&name` after.
-- Ask the user decisions by [ask-user.md](references/ask-user.md).
+- Ask the user decisions by [ask-user.md](references/ask-user.md). Your own asks use `moe-lead.py wait-user '<what>'` (❓ in your title, one notification) before the question, and `moe-lead.py user-answered` when nothing stays open. When you need the user to do something that is not an answer (credentials, a refused permission, an outage, an outside step), run `moe-lead.py wait-user --act '<what>'` (❗️).
 - Agents ask the user in their own threads, and the user answers there. You do not relay their questions. If the user answers an agent's question in your thread, forward the user's words to that agent once, verbatim.
 
 ## Set up, first turn
 
-1. Set your title, once: `moe-lead.py setup --title '<emoji> <task summary>'`. The summary has 2 to 5 words, for example `🧾 CSV export`.
+1. Set your title, once: `moe-lead.py setup --title '<emoji> <task summary>'`. The summary has 2 to 5 words, for example `🧾 CSV export`. A later `setup --title` replaces the whole title, marker included: set it only before your first ask.
 2. Your IDs are in `$BB_PROJECT_ID`, `$BB_THREAD_ID` and `$BB_ENVIRONMENT_ID`; `moe-lead.py setup` (step 6) records them in `S/logs/team.json`.
 3. Run `mkdir -p S/{briefs,logs,reports,design,evidence,secrets}`.
 4. Start `S/logs/lead-state.md`: the state snapshot. Keep it for the whole job. Templates: [logs-and-state.md](references/logs-and-state.md).

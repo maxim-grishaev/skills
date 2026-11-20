@@ -58,6 +58,16 @@ M wait auth__build        # block until idle (--timeout 20m); only when your nex
 
 In chat, link an agent as `@thread:<id>`; never build thread URLs by hand. The IDs are in `S/logs/team.json`.
 
+## Wait on the user
+
+```sh
+M wait-user 'Q2 - model tier'             # ❓ in your title, one notification, prints the line to end on
+M wait-user --act 'sign in to staging'    # ❗️: the user must do something that is not an answer
+M user-answered                           # nothing stays open: take the marker off
+```
+
+Rules: [ask-user.md](ask-user.md).
+
 ## Recover and clean up
 
 ```sh

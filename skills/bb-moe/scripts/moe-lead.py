@@ -6,7 +6,8 @@ IDs, the model tier map and the weight in S/logs/team.json. `brief` renders an
 agent's brief from flags plus a Markdown body on stdin and templates/brief/, saves
 it as S/briefs/<name>-NN-<task>.md and, with --spawn, spawns the agent and adds it
 to the team registry in S/logs/team.json. `follow-up` sends a later brief to a
-registered agent; `tell` sends a short message. `status`, `show`, `output`, `log`
+registered agent; `tell` sends a short message. `wait-user` marks the Lead's title and
+notifies the user before it waits on them; `user-answered` takes the marker off. `status`, `show`, `output`, `log`
 and `wait` read the team; `retry`, `compact` and `stop` act on an agent. `usage` reports what the Lead and every thread
 under it used.
 
@@ -27,6 +28,7 @@ from moelib import messaging
 from moelib import team as teamlib
 from moelib import templates
 from moelib import usage as usagelib
+from moelib import waiting
 from moelib.runtime import BbError, BbRuntime
 from moelib.templates import TemplateError
 from moelib.util import Failure, die, now, read_stdin_body, shell_quote
@@ -62,6 +64,10 @@ examples:
   moe-lead.py usage --thread thr_abc123 --json
   moe-lead.py wait auth__build --timeout 20m
   moe-lead.py retry auth__build
+
+  moe-lead.py wait-user 'Q2 - model tier'
+  moe-lead.py wait-user --act 'sign in to the staging console'
+  moe-lead.py user-answered
 
 The body comes only from stdin, through a quoted heredoc (<<'EOF'): inside
 double quotes the shell runs backticks and $(...) before the script sees them.
@@ -475,6 +481,25 @@ def cmd_stop(args, rt):
 # ---------------------------------------------------------------- usage
 
 
+def cmd_wait_user(args, rt):
+    _, _, me = lead_team(rt)
+    what = " ".join(args.what.split())
+    if not what:
+        raise Failure("say what you wait on: `wait-user '<what>'`")
+    lines, warnings = waiting.wait_for_user(
+        rt, me, "Lead", what, waiting.ACTION if args.act else waiting.QUESTION)
+    print("\n".join(lines))
+    for w in warnings:
+        print("warning: " + w, file=sys.stderr)
+    return 0
+
+
+def cmd_user_answered(args, rt):
+    _, _, me = lead_team(rt)
+    print(waiting.clear_marker(rt, me))
+    return 0
+
+
 def cmd_usage(args, rt):
     split = usagelib.parse_split(args.split_at) if args.split_at else None
     if args.thread:
@@ -660,6 +685,24 @@ def build_parser():
                                     "agent threads and worktrees is the user's call.")
     sp.add_argument("name", help="the agent, without '&'")
     sp.set_defaults(func=cmd_stop)
+
+    wu = sub.add_parser(
+        "wait-user", help="mark your title, notify the user, wait",
+        description="Before you end a turn waiting on the user: put ❓ (a question, "
+                    "references/ask-user.md) or ❗️ (--act: the user must do something else) in front of "
+                    "your own title, replacing the other marker, push one notification that opens this "
+                    "thread, and print the `waiting for user on <what>` line to end the turn on. A bb "
+                    "failure is a warning; the turn still ends on the line.")
+    wu.add_argument("what", help="what you wait on, e.g. 'Q2 - model tier'; it is the notification's body")
+    wu.add_argument("--act", action="store_true",
+                    help="the user must do something that is not answering a question: ❗️ instead of ❓")
+    wu.set_defaults(func=cmd_wait_user)
+
+    ua = sub.add_parser(
+        "user-answered", help="take the marker off your title",
+        description="The user answered or acted and nothing stays open: take the leading ❓ or ❗️ off "
+                    "your title. Does nothing without a marker.")
+    ua.set_defaults(func=cmd_user_answered)
     return parser
 
 

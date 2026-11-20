@@ -18,7 +18,8 @@ These rules apply to every agent the Lead dispatches. Your brief gives the task.
 
 ## Who decides
 
-- You may ask the user in your own thread and stop until they answer. Ask by `R/ask-user.md`. Write down what you have first, so a late answer loses nothing. Your role file may narrow this: a scout never asks the user; it reports to the agent it works for.
+- You may ask the user in your own thread and stop until they answer. Ask by `R/ask-user.md`: `moe-agent.py wait-user` marks your title and notifies the user, `user-answered` clears it. Write down what you have first, so a late answer loses nothing.
+- Waiting on the user to do something that is not an answer (credentials, a refused permission, a blocker only they can lift): `moe-agent.py wait-user --act '<what>'`. Your role file may narrow this: a scout never asks the user; it reports to the agent it works for.
 - Anything that changes scope, the design, the weight, landing or a user decision goes to the Lead. If the user told you such a thing in your thread, tell the Lead what the user said, quoted.
 
 ## Talking to other agents
@@ -29,7 +30,7 @@ These rules apply to every agent the Lead dispatches. Your brief gives the task.
 - `moe-agent.py` is the command your brief's opening gives, `python3 <path>/moe-agent.py`. Run each call as one plain command: no `;`, `&&` or `|` around it. If it cannot find the team it says what it tried; then pass `--root <S>` with the storage root from your brief.
 - `NOT delivered`: bb refused the send twice; it did not happen. `UNCONFIRMED`: bb answered without `sent` or `queued`; the message may have arrived. Do not resend either. If the message was for another agent, tell the Lead with `tell-lead`, quoting the script's line. If it was for the Lead, put the script's line in your final answer: the Lead's `moe-lead.py status` flags you: idle, with nothing sent since the Lead's last message.
 - Send one message per round, with everything from that round. Send no thanks or acknowledgements.
-- If your turn ends only because you wait, end it with one line: `waiting for &<name> on <what>`; for the Lead, write `Lead`: `waiting for Lead on <what>`.
+- If your turn ends only because you wait, end it with one line: `waiting for &<name> on <what>`; for the Lead, write `Lead`: `waiting for Lead on <what>`. Waiting on the user ends on the line `wait-user` prints.
 
 ## Reaching the Lead
 

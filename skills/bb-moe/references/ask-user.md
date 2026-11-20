@@ -9,7 +9,18 @@ Any agent that asks the user a decision follows this file. Your role file may ad
 - Ask every ambiguous point that changes what you deliver. Stay at topic level: no detail sub-questions, no cap on the count.
 - Format each question by the template below, with numbered choices and your recommendation first.
 - Word each question so "yes"/"y"/"ok" accepts your recommendation. The user answers with a choice number, free text, or both.
-- End every asking message with a line `waiting for user on <what>` (for example `waiting for user on Q3`), then stop.
+- Before an asking message, run `moe-agent.py wait-user '<what>'` (the Lead: `moe-lead.py wait-user '<what>'`), for example `wait-user 'Q3 - model tier'`. It puts ❓ in front of your thread's title, pushes one notification that opens your thread, and prints the line to end on.
+- End every asking message with the line it prints, `waiting for user on <what>`, then stop.
+
+## Marker and notification
+
+- ❓ means you wait on the user's answer to a question. One `wait-user` call per asking message; in a full session the ❓ stays on between questions.
+- ❗️ means the user must do something that is not answering a question: supply credentials, allow a refused permission, lift a blocker only they can lift, take a step outside bb. Run `wait-user --act '<what>'`. Name the step in the message, then end on the same line. A choice the user picks from is a question: ❓.
+- A thread carries one marker: a new `wait-user` replaces the old one.
+- The user's answer arrives: if you ask again at once, just ask. If nothing stays open, run `user-answered` first, before anything else. It takes the marker off and leaves the rest of the title. Nothing does this for you.
+- The user may act while your turn is still running, for example in the form a `bb secret request` shows. No new turn starts then: run `user-answered` as soon as the command returns.
+- A `warning:` from the script is not a stop. Carry on and end on the line.
+- bb's own approval prompts need none of this: bb already notifies for them.
 
 ## Question template
 

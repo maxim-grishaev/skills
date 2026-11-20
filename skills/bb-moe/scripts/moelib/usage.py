@@ -14,7 +14,7 @@ import datetime
 import json
 import os
 
-from moelib import templates
+from moelib import templates, waiting
 from moelib.runtime import BbError
 from moelib.util import Failure, now
 
@@ -126,7 +126,7 @@ def _team_names(team):
 
 def _thread(row, read, names, topics, root_thread, team, split_at, previous):
     """One thread's record: bb's tree row plus its usage, name, topic and deltas."""
-    tid, title = row["id"], row.get("title") or ""
+    tid, title = row["id"], waiting.strip_marker(row.get("title"))
     if tid in names:
         name, named_by = names[tid], "team"
     elif tid == root_thread:

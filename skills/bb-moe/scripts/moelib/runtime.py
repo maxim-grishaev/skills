@@ -77,7 +77,8 @@ class BbRuntime:
     # ---------------------------------------------------------------- identity
 
     def whoami(self):
-        """This thread: id, parent, project, environment, data dir, own storage path."""
+        """This thread: id, parent, title (None when unset), project, environment, data dir,
+        own storage path."""
         data = self._json(["status"])
         thread = data.get("thread") or {}
         env = (thread.get("environment") or {}).get("display") or {}
@@ -89,6 +90,7 @@ class BbRuntime:
         return {
             "thread": thread_id,
             "parent": thread.get("parentThreadId"),
+            "title": thread.get("title"),
             "project": (data.get("project") or {}).get("id") or os.environ.get("BB_PROJECT_ID"),
             "environment": env.get("id") or os.environ.get("BB_ENVIRONMENT_ID"),
             "data_dir": data_dir,
@@ -110,6 +112,14 @@ class BbRuntime:
 
     def set_title(self, title):
         self._run(["thread", "update", "--self", "--title", title])
+
+    def notify(self, title, body, thread=None):
+        """Push a notification to the user's devices; a click opens `thread`. bb cuts the title at
+        80 characters and the body at 180. Raises BbError when no channel got it."""
+        args = ["push-notifications", "send", "--title", title, "--body", body]
+        if thread:
+            args += ["--thread", thread]
+        self._run(args)
 
     # ---------------------------------------------------------------- threads
 

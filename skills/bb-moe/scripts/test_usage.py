@@ -179,6 +179,15 @@ class WalkTest(UsageTest):
         self.assertEqual(report["total"]["turns"], 14)  # unregistered threads are in the totals
         self.assertEqual(report["total"]["tokens"], 100)
 
+    def test_a_marker_in_front_of_a_title_does_not_change_the_name(self):
+        self.rt.tree = [tree_row("thr_lead", None, "the lead", 0),
+                        tree_row("thr_q", "thr_lead", "❓ &auth__qa", 1),
+                        tree_row("thr_r", "thr_lead", "❗️ &auth__reviewer", 1)]
+        by_id = {t["id"]: t for t in self.report()["threads"]}
+        self.assertEqual((by_id["thr_q"]["name"], by_id["thr_q"]["named_by"], by_id["thr_q"]["topic"]),
+                         ("auth__qa", "title", "auth"))
+        self.assertEqual((by_id["thr_r"]["name"], by_id["thr_r"]["named_by"]), ("auth__reviewer", "title"))
+
     def test_topics_follow_the_name_and_children_join_their_parents(self):
         self.deep_tree()
         topics = {t["id"]: t["topic"] for t in self.report()["threads"]}

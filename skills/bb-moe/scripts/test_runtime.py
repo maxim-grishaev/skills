@@ -152,6 +152,30 @@ class StandInTest(unittest.TestCase):
         self.assertEqual(self.rt.team_root(), "/d/thread-storage/thr_p")
         self.assertEqual(self.rt.list_children(), [{"id": "thr_k", "status": "idle", "title": "&k"}])
 
+    def test_whoami_has_the_title_and_none_when_unset(self):
+        self.answer({"thread": {"id": "thr_c", "title": "&auth__build"}})
+        self.assertEqual(self.rt.whoami()["title"], "&auth__build")
+        self.answer({"thread": {"id": "thr_c", "title": None}})
+        self.assertIsNone(self.rt.whoami()["title"])
+
+    def test_notify_pushes_title_body_and_the_thread_to_open(self):
+        self.answer({"ok": True})
+        self.rt.notify("❓ &a asks", "Q2 - model tier", "thr_a")
+        self.assertEqual(self.calls()[0]["argv"],
+                         ["push-notifications", "send", "--title", "❓ &a asks", "--body", "Q2 - model tier",
+                          "--thread", "thr_a", "--json"])
+
+    def test_notify_without_a_thread_leaves_out_the_flag(self):
+        self.answer({"ok": True})
+        self.rt.notify("t", "b")
+        self.assertNotIn("--thread", self.calls()[0]["argv"])
+
+    def test_notify_that_reached_no_channel_raises(self):
+        self.answer({"ok": False, "error": {"code": "not_delivered", "message": "no channel"}}, exit_code=1)
+        with self.assertRaises(BbError) as c:
+            self.rt.notify("t", "b", "thr_a")
+        self.assertEqual(c.exception.code, "not_delivered")
+
     def test_team_root_is_none_without_a_parent(self):
         self.answer({"dataDir": "/d", "thread": {"id": "thr_c", "parentThreadId": None}})
         self.assertIsNone(self.rt.team_root())
